@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# PyDev project settings
+.project
+.pydevproject
+
+# Internal folders
+_99_summary/
+PSRC/
+R_Summaries/
