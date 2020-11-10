@@ -7,8 +7,8 @@ Created on May 5, 2020
 import pandas as pd
 from os.path import join
 
-BASE_DIR = r'..\..\MTC-SFCTA2018\Processing_20200228\2_tour_extract'
-RAW_DIR = r'..\..\MTC-SFCTA2018\Processing_20200228\spatial_join'
+BASE_DIR = r'..\..\Processing_20200228\2_tour_extract'
+RAW_DIR = r'..\..\Processing_20200228\spatial_join'
 DOW_LOOKUP = {1:'mon',2:'tue',3:'wed',4:'thu',5:'fri',6:'sat',7:'sun'}
 
 # WT_CAP = 10000
