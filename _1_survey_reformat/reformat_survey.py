@@ -163,6 +163,20 @@ if __name__ == '__main__':
         per.loc[pd.isnull(per['psxcord']), 'psxcord'] = -1.0
         per.loc[pd.isnull(per['psycord']), 'psycord'] = -1.0
         
+        # there appear to be some person records who are not students but have school loc Ex. hhid 181005890
+        # account for that by setting school loc to null/missing
+        per.loc[per['pstyp']==0, 'pstaz'] = -1
+        per.loc[per['pstyp']==0, 'pspcl'] = -1
+        per.loc[per['pstyp']==0, 'psxcord'] = -1.0
+        per.loc[per['pstyp']==0, 'psycord'] = -1.0
+        
+        # there appear to be some person records who are not workers but have work loc Ex. hhid 181007697
+        # account for that by setting work loc to null/missing
+        per.loc[per['pwtyp']==0, 'pwtaz'] = -1
+        per.loc[per['pwtyp']==0, 'pwpcl'] = -1
+        per.loc[per['pwtyp']==0, 'pwxcord'] = -1.0
+        per.loc[per['pwtyp']==0, 'pwycord'] = -1.0
+        
         int_cols = ['pwtaz','pstaz','pwpcl','pspcl','pgend'] 
         per[int_cols] = per[int_cols].astype(int)
         
