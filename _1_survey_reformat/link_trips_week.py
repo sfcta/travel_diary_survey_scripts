@@ -6,8 +6,13 @@ Created on May 4, 2020
 
 import pandas as pd
 import numpy as np
+from os.path import join
 
-trip = pd.read_csv(r'..\..\Processing_20200228\1_reformat_survey\temp_tripx.dat', sep=' ')
+# DIR = r'..\..\Processing_20200228\1_reformat_survey'
+# SANDAG
+DIR = '.'
+
+trip = pd.read_csv(join(DIR, 'temp_tripx.dat'), sep=' ')
 ORIG_COLS = [col for col in trip.columns if col!= 'mode_type_imputed']
 
 min_trips = trip[['hhno','pno','dow','tripno']].groupby(['hhno','pno','dow']).min().reset_index()
@@ -226,7 +231,7 @@ trip = trip.merge(del_df, how='left')
 trip.loc[pd.isna(trip['del_flag']), 'del_flag'] = 0
 
 print(len(trip))
-trip.to_csv(r'..\..\Processing_20200228\1_reformat_survey\temp_tripx_linked_detail_week.csv', index=False)
+trip.to_csv(join(DIR, 'temp_tripx_linked_detail_week.csv'), index=False)
 
 trip = trip.loc[trip['del_flag']==0, ORIG_COLS]
 print(len(trip))
@@ -236,6 +241,6 @@ trip = trip.sort_values(['hhno','pno','tripno'])
 df_count = trip[['hhno','pno','tripno']].groupby(['hhno','pno']).count().reset_index()
 trip['lintripno'] = np.concatenate(df_count['tripno'].apply(lambda x: range(1,x+1)))
 
-trip.to_csv(r'..\..\Processing_20200228\1_reformat_survey\temp_tripx_linked_week.dat', sep=' ', index=False)
+trip.to_csv(join(DIR, 'temp_tripx_linked_week.dat'), sep=' ', index=False)
 
-accegr_df.to_csv(r'..\..\Processing_20200228\1_reformat_survey\accegr_week.csv', index=False)
+accegr_df.to_csv(join(DIR, 'accegr_week.csv'), index=False)
