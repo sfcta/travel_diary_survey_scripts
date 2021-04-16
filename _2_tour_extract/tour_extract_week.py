@@ -159,7 +159,7 @@ if __name__ == '__main__':
         xtour = numpy.empty((PMAX,TMAX),dtype=int);      xhalf = numpy.empty((PMAX,TMAX),dtype=int)
         tdorp = numpy.empty((PMAX,TMAX),dtype=int)
         totaz = numpy.empty((PMAX,TMAX),dtype=int);      tdtaz = numpy.empty((PMAX,TMAX),dtype=int)
-        topcl = numpy.empty((PMAX,TMAX),dtype=int);      tdpcl = numpy.empty((PMAX,TMAX),dtype=int)
+        topcl = numpy.empty((PMAX,TMAX));                tdpcl = numpy.empty((PMAX,TMAX))
         toxco = numpy.empty((PMAX,TMAX));                toyco = numpy.empty((PMAX,TMAX));                   tdxco = numpy.empty((PMAX,TMAX))
         tdyco = numpy.empty((PMAX,TMAX))
         extrastop = numpy.empty((3),dtype=int)
@@ -245,9 +245,10 @@ if __name__ == '__main__':
                 
                 if(len(hpertrips)>0):
                     pdays[p] = hpertrips['dow'].unique()
-                    t1 = sorted(hpertrips[['dow','lintripno']].groupby('dow').min()['lintripno'].tolist())
+                    tripnum_col = 'lintripno' if 'lintripno' in hpertrips.columns else 'tripno'
+                    t1 = sorted(hpertrips[['dow',tripnum_col]].groupby('dow').min()[tripnum_col].tolist())
                     st_trip_nos = list(t1)
-                    t2 = sorted(hpertrips[['dow','lintripno']].groupby('dow').max()['lintripno'].tolist())
+                    t2 = sorted(hpertrips[['dow',tripnum_col]].groupby('dow').max()[tripnum_col].tolist())
 #                     for d,t1,t2 in zip(pdays[p], t1, t2):
 #                         precs[p,d,0] = t1
 #                         precs[p,d,1] = t2
