@@ -7,8 +7,10 @@ Created on May 5, 2020
 import pandas as pd
 from os.path import join
 
-BASE_DIR = r'..\..\Processing_20200228\2_tour_extract'
-RAW_DIR = r'..\..\Processing_20200228\spatial_join'
+# BASE_DIR = r'..\..\Processing_20200228\2_tour_extract'
+# RAW_DIR = r'..\..\Processing_20200228\spatial_join'
+BASE_DIR = r'..\..\Processing_20210302\2_tour_extract'
+RAW_DIR = r'..\..\Processing_20210302\spatial_join'
 DOW_LOOKUP = {1:'mon',2:'tue',3:'wed',4:'thu',5:'fri',6:'sat',7:'sun'}
 
 # WT_CAP = 10000
@@ -66,6 +68,16 @@ raw_per['weight'] = raw_per[wt_col]/raw_per[wt_num]
 
 # read in raw trip file for dow info
 raw_trips = pd.read_csv(join(RAW_DIR, 'ex_trip_wZones.csv'))
+
+if 'trip_num' not in raw_trips.columns:
+    raw_trips = raw_trips.rename(columns={'linked_trip_id':'trip_num'})
+if 'travel_date_dow' not in raw_trips.columns:
+            day = pd.read_csv(join(RAW_DIR, 'day.csv'))
+            day = day[['person_id','day_num','travel_date_dow']]
+            day['person_id'] = day['person_id'].round()
+            raw_trips['person_id'] = raw_trips['person_id'].round()
+            raw_trips = raw_trips.merge(day, on=['person_id','day_num']) 
+
 raw_trips = raw_trips[['hh_id','person_num','trip_num','travel_date_dow',
                        'o_purpose_category_imputed','d_purpose_category_imputed']]
 raw_trips.columns = ['hhno','pno','tsvid','dow','opurp','dpurp']
