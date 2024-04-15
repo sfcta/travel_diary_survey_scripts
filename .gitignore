@@ -133,6 +133,8 @@ dmypy.json
 .pydevproject
 
 # Internal folders
+_98_notebooks/
 _99_summary/
 PSRC/
 R_Summaries/
+.Rproj.user

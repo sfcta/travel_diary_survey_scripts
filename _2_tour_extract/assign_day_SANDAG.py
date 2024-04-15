@@ -65,7 +65,16 @@ if WT_CAP != None:
 raw_per['weight'] = raw_per[wt_col]/raw_per[wt_num]
 
 # read in raw trip file for dow info
-raw_trips = pd.read_csv(join(RAW_DIR, 'trip.tsv'), sep='\t')
+raw_trips = pd.read_csv(join(RAW_DIR, 'trip_linked.tsv'), sep='\t')
+if 'trip_num' not in raw_trips.columns:
+    raw_trips = raw_trips.rename(columns={'linked_trip_id':'trip_num'})
+if 'travel_date_dow' not in raw_trips.columns:
+    day = pd.read_csv(join(RAW_DIR, 'day.tsv'), sep='\t')
+    day = day[['person_id','day_num','travel_date_dow','travel_date']]
+    day['person_id'] = day['person_id'].round()
+    raw_trips['person_id'] = raw_trips['person_id'].round()
+    raw_trips = raw_trips.merge(day, on=['person_id','day_num']) 
+    
 raw_trips = raw_trips[['hh_id','person_num','trip_num','travel_date_dow','travel_date',
                        'o_purpose_category_imputed','d_purpose_category_imputed']]
 raw_trips.columns = ['hhno','pno','tsvid','dow','travel_date','opurp','dpurp']

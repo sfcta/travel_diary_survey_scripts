@@ -112,6 +112,7 @@ if __name__ == '__main__':
         
         per['hhno'] = per['hh_id']
         per['pno'] = per['person_num']
+        per = per.merge(hh[['hhno','hxcord','hycord','hhparcel','hhtaz']])
         
         AGE_DICT = {1:3, 2:10, 3:16, 4:21, 5:30, 6:40, 7:50, 8:60, 9:70, 10:80}
         per['pagey'] = per['age'].map(AGE_DICT)
@@ -127,9 +128,9 @@ if __name__ == '__main__':
         
         per.loc[(per['pagey']>=0) & (per['pagey']<5), 'pptyp'] = 8
         per.loc[(per['pagey']>=0) & (per['pagey']<16) & (per['pptyp']==0), 'pptyp'] = 7
-        per.loc[(per['employment']==1) & (per['hours_work'].isin([1,2,3])) & (per['pptyp']==0), 'pptyp'] = 1
-        per.loc[(per['pagey']>=16) & (per['pagey']<18) & (per['pptyp']==0), 'pptyp'] = 6
-        per.loc[(per['pagey']>=16) & (per['pagey']<25) & (per['school_type'].isin([4,7])) & (per['student']==1) & (per['pptyp']==0), 'pptyp'] = 6
+        per.loc[(per['employment'].isin([1,3])) & (per['hours_work'].isin([1,2,3,4])) & (per['pptyp']==0), 'pptyp'] = 1
+        per.loc[(per['pagey']>=16) & (per['pagey']<18) & (per['student'].isin([1,2])) & (per['pptyp']==0), 'pptyp'] = 6
+        per.loc[(per['pagey']>=16) & (per['pagey']<25) & (per['school_type'].isin([7])) & (per['student'].isin([1,2])) & (per['pptyp']==0), 'pptyp'] = 6
         per.loc[(per['student'].isin([1,2])) & (per['pptyp']==0), 'pptyp'] = 5
         per.loc[(per['employment'].isin([1,2,3])) & (per['pptyp']==0), 'pptyp'] = 2 # Remaining workers are part-time
         per.loc[(per['pagey']>65) & (per['pptyp']==0), 'pptyp'] = 3
@@ -146,6 +147,7 @@ if __name__ == '__main__':
         
         per['pwxcord'] = per['work_lon']
         per['pwycord'] = per['work_lat']
+        
         per['psxcord'] = per['school_lon']
         per['psycord'] = per['school_lat']
         
@@ -158,6 +160,14 @@ if __name__ == '__main__':
         per.loc[per['work_county_fips'].isin(COUNTY_FIPS), 'pwpcl'] = per.loc[per['work_county_fips'].isin(COUNTY_FIPS), 'pwpcl_tmp']
         per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pstaz'] = per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pstaz_tmp']
         per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pspcl'] = per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pspcl_tmp']
+        
+        per['flag'] = 0
+        per.loc[(per['pwtyp']>0) & (per['job_type']==3), 'flag'] = 1 # Work at home ONLY (telework, self-employed)
+        per.loc[per['flag']==1, 'pwxcord'] = per.loc[per['flag']==1, 'hxcord']
+        per.loc[per['flag']==1, 'pwycord'] = per.loc[per['flag']==1, 'hycord']
+        per.loc[per['flag']==1, 'pwpcl'] = per.loc[per['flag']==1, 'hhparcel']
+        per.loc[per['flag']==1, 'pwtaz'] = per.loc[per['flag']==1, 'hhtaz']
+        
         per.loc[pd.isnull(per['pwtaz']), 'pwtaz'] = -1
         per.loc[pd.isnull(per['pstaz']), 'pstaz'] = -1
         per.loc[pd.isnull(per['pwpcl']), 'pwpcl'] = -1
@@ -307,13 +317,18 @@ if __name__ == '__main__':
         trip.loc[(trip['mode']==9) & (trip['num_travelers']==2), 'dorp'] = 12
         trip.loc[(trip['mode']==9) & (trip['num_travelers']>2), 'dorp'] = 13
         
-        trip['depart_hour'] = trip['depart_time_imputed'].str.split(expand=True)[1].str.split(':',expand=True)[0].astype(int)
-        trip['depart_minute'] = trip['depart_time_imputed'].str.split(expand=True)[1].str.split(':',expand=True)[1].astype(int)
+        trip['depart_hour'] = pd.to_datetime(trip['depart_time_imputed']).dt.hour
+        trip['depart_minute'] = pd.to_datetime(trip['depart_time_imputed']).dt.minute
+        
+#         trip['depart_hour'] = trip['depart_time_imputed'].str.split(expand=True)[1].str.split(':',expand=True)[0].astype(int)
+#         trip['depart_minute'] = trip['depart_time_imputed'].str.split(expand=True)[1].str.split(':',expand=True)[1].astype(int)
         
         trip['deptm'] = trip['depart_hour']*100 + trip['depart_minute']
         if 'arrive_hour' not in trip.columns:
-            trip['arrive_hour'] = trip['arrive_time'].str.split(expand=True)[1].str.split(':',expand=True)[0].astype(int)
-            trip['arrive_minute'] = trip['arrive_time'].str.split(expand=True)[1].str.split(':',expand=True)[1].astype(int)
+            trip['arrive_hour'] = pd.to_datetime(trip['arrive_time']).dt.hour
+            trip['arrive_minute'] = pd.to_datetime(trip['arrive_time']).dt.minute
+#             trip['arrive_hour'] = trip['arrive_time'].str.split(expand=True)[1].str.split(':',expand=True)[0].astype(int)
+#             trip['arrive_minute'] = trip['arrive_time'].str.split(expand=True)[1].str.split(':',expand=True)[1].astype(int)
         trip['arrtm'] = trip['arrive_hour']*100 + trip['arrive_minute']
         
         trip['oxcord'] = trip['o_lon']

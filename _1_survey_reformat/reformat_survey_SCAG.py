@@ -36,6 +36,8 @@ if __name__ == '__main__':
                     inperfilename = value
                 elif param == 'INTRIPFILE':
                     intripfilename = value
+                elif param == 'INDAYFILE':
+                    indayfilename = value
                 
                 elif param == 'OUTDIR':
                     outputdir = value
@@ -49,6 +51,8 @@ if __name__ == '__main__':
         inhhfilename = join(inputdir, inhhfilename)
         inperfilename = join(inputdir, inperfilename)
         intripfilename = join(inputdir, intripfilename)
+        if indayfilename:
+            indayfilename = join(inputdir, indayfilename)
         
         outhhfilename = join(outputdir, outhhfilename)
         outperfilename = join(outputdir, outperfilename)
@@ -111,6 +115,7 @@ if __name__ == '__main__':
         
         per['hhno'] = per['hh_id']
         per['pno'] = per['person_num']
+        per = per.merge(hh[['hhno','hxcord','hycord','hhparcel','hhtaz']])
         
         AGE_DICT = {1:3, 2:10, 3:16, 4:21, 5:30, 6:40, 7:50, 8:60, 9:70, 10:80}
         per['pagey'] = per['age'].map(AGE_DICT)
@@ -157,6 +162,14 @@ if __name__ == '__main__':
         per.loc[per['work_county_fips'].isin(COUNTY_FIPS), 'pwpcl'] = per.loc[per['work_county_fips'].isin(COUNTY_FIPS), 'pwpcl_tmp']
         per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pstaz'] = per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pstaz_tmp']
         per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pspcl'] = per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pspcl_tmp']
+        
+        per['flag'] = 0
+        per.loc[(per['pwtyp']>0) & (per['job_type']==3), 'flag'] = 1 # Work at home ONLY (telework, self-employed)
+        per.loc[per['flag']==1, 'pwxcord'] = per.loc[per['flag']==1, 'hxcord']
+        per.loc[per['flag']==1, 'pwycord'] = per.loc[per['flag']==1, 'hycord']
+        per.loc[per['flag']==1, 'pwpcl'] = per.loc[per['flag']==1, 'hhparcel']
+        per.loc[per['flag']==1, 'pwtaz'] = per.loc[per['flag']==1, 'hhtaz']
+        
         per.loc[pd.isnull(per['pwtaz']), 'pwtaz'] = -1
         per.loc[pd.isnull(per['pstaz']), 'pstaz'] = -1
         per.loc[pd.isnull(per['pwpcl']), 'pwpcl'] = -1
@@ -204,7 +217,16 @@ if __name__ == '__main__':
         
         trip['hhno'] = trip['hh_id']
         trip['pno'] = trip['person_num']
-        trip['tripno'] = trip['trip_num']
+        if 'trip_num' in trip.columns:
+            trip['tripno'] = trip['trip_num']
+        else:
+            trip['tripno'] = trip['linked_trip_id']
+        
+        if 'travel_date_dow' not in trip.columns:
+            day = pd.read_csv(indayfilename, sep='\t')
+            day = day[['person_id','day_num','travel_date_dow','travel_date']]
+            day['person_id'] = day['person_id'].round()
+            trip = trip.merge(day, on=['person_id','day_num']) 
         trip['dow'] = trip['travel_date_dow']
         
         if len(trip.loc[pd.isna(trip['dow']), ]) > 0 :
@@ -257,32 +279,43 @@ if __name__ == '__main__':
         trip.loc[(trip['mode_type_imputed']==4) & (trip['mode']==0), 'mode'] = 9
         trip.loc[(trip['mode_type_imputed']==9) & (trip['mode']==0), 'mode'] = 9
         
-        DRIVE_ACCESS_CODES = [5,6,7]
-#         TRANSIT_MODES = [5, 8]
-        TRANSIT_MODES = [5]
-        trip.loc[(trip['mode_type_imputed'].isin(TRANSIT_MODES)) & (trip['mode']==0), 'mode'] = 6
-#         trip.loc[(trip['mode_type_imputed']==8) & (trip['mode_1']==21), 'mode'] = 5 #make vanpool HOV3
-        trip.loc[(trip['mode_type_imputed']==8), 'mode'] = 5 #make both shuttle and vanpool HOV3
-#         trip.loc[(trip['mode_type_imputed']==13) & (trip['mode_1']==41) & (trip['mode']==0), 'mode'] = 6
-        
-        trip.loc[(trip['mode']==6) & 
-                 ((trip['bus_access'].isin(DRIVE_ACCESS_CODES)) | (trip['bus_egress'].isin(DRIVE_ACCESS_CODES)) |
-                  (trip['rail_access'].isin(DRIVE_ACCESS_CODES)) | (trip['rail_access'].isin(DRIVE_ACCESS_CODES))), 'mode'] = 7
+        if 'is_transit' in trip.columns:
+            trip.loc[(trip['is_transit']==1) & (trip['mode']==0), 'mode'] = 6
+            DRIVE_ACCESS_CODES = [3,4,9,10]
+            trip.loc[(trip['mode']==6) & 
+                     ((trip['access_mode_type'].isin(DRIVE_ACCESS_CODES)) | (trip['egress_mode_type'].isin(DRIVE_ACCESS_CODES))), 'mode'] = 7
+        else:
+            DRIVE_ACCESS_CODES = [5,6,7]
+    #         TRANSIT_MODES = [5, 8]
+            TRANSIT_MODES = [5]
+            trip.loc[(trip['mode_type_imputed'].isin(TRANSIT_MODES)) & (trip['mode']==0), 'mode'] = 6
+    #         trip.loc[(trip['mode_type_imputed']==8) & (trip['mode_1']==21), 'mode'] = 5 #make vanpool HOV3
+            trip.loc[(trip['mode_type_imputed']==8), 'mode'] = 5 #make both shuttle and vanpool HOV3
+            trip.loc[(trip['mode_type_imputed']==13) & (trip['mode_1']==41) & (trip['mode']==0), 'mode'] = 6
+            
+            trip.loc[(trip['mode']==6) & 
+                     ((trip['bus_access'].isin(DRIVE_ACCESS_CODES)) | (trip['bus_egress'].isin(DRIVE_ACCESS_CODES)) |
+                      (trip['rail_access'].isin(DRIVE_ACCESS_CODES)) | (trip['rail_access'].isin(DRIVE_ACCESS_CODES))), 'mode'] = 7
         trip.loc[(trip['mode_type_imputed']==6) & (trip['mode']==0), 'mode'] = 8 #Schoolbus
         
         trip['mode_4'] = trip['mode_3']
         #0-none 1-fullnetwork 2-notoll 3-bus 4-lrt 5-prem 6-bart 7-ferry
+        TRN_MODES_PROCESSED = [6,7]
         trip['path'] = 0
         trip.loc[(trip['mode_type_imputed']==3) & (trip['path']==0), 'path'] = 1
-        trip.loc[(trip['mode']==6) & (trip['path']==0), 'path'] = 3
-        trip.loc[(trip['mode']==6) & 
-                 ((trip['mode_1'].isin([32])) | (trip['mode_2'].isin([32])) | (trip['mode_3'].isin([32])) | (trip['mode_4'].isin([32]))), 'path'] = 7
-        trip.loc[(trip['mode']==6) & 
-                 ((trip['mode_1'].isin([30])) | (trip['mode_2'].isin([30])) | (trip['mode_3'].isin([30])) | (trip['mode_4'].isin([30]))), 'path'] = 6
-        trip.loc[(trip['mode']==6) & 
-                 ((trip['mode_1'].isin([41,42,55])) | (trip['mode_2'].isin([41,42,55])) | (trip['mode_3'].isin([41,42,55])) | (trip['mode_4'].isin([41,42,55]))), 'path'] = 5
-        trip.loc[(trip['mode']==6) & 
-                 ((trip['mode_1'].isin([39,68])) | (trip['mode_2'].isin([39,68])) | (trip['mode_3'].isin([39,68])) | (trip['mode_4'].isin([39,68]))), 'path'] = 4
+        trip.loc[(trip['mode'].isin(TRN_MODES_PROCESSED)) & (trip['path']==0), 'path'] = 3
+        trip.loc[(trip['mode'].isin(TRN_MODES_PROCESSED)) & 
+                 ((trip['mode_1'].isin([32])) | (trip['mode_2'].isin([32])) | (trip['mode_3'].isin([32])) | (trip['mode_4'].isin([32]))) &
+                 (trip['path']==3), 'path'] = 7
+        trip.loc[(trip['mode'].isin(TRN_MODES_PROCESSED)) & 
+                 ((trip['mode_1'].isin([30])) | (trip['mode_2'].isin([30])) | (trip['mode_3'].isin([30])) | (trip['mode_4'].isin([30]))) &
+                 (trip['path']==3), 'path'] = 6
+        trip.loc[(trip['mode'].isin(TRN_MODES_PROCESSED)) & 
+                 ((trip['mode_1'].isin([41,42,55])) | (trip['mode_2'].isin([41,42,55])) | (trip['mode_3'].isin([41,42,55])) | (trip['mode_4'].isin([41,42,55]))) &
+                 (trip['path']==3), 'path'] = 5
+        trip.loc[(trip['mode'].isin(TRN_MODES_PROCESSED)) & 
+                 ((trip['mode_1'].isin([39,68])) | (trip['mode_2'].isin([39,68])) | (trip['mode_3'].isin([39,68])) | (trip['mode_4'].isin([39,68]))) &
+                 (trip['path']==3), 'path'] = 4
         
         trip['dorp'] = 3
         trip.loc[trip['mode'].isin([3,4,5]), 'dorp'] = 9 #assign missing code for all car trips
@@ -292,10 +325,13 @@ if __name__ == '__main__':
         trip.loc[(trip['mode']==9) & (trip['num_travelers']==2), 'dorp'] = 12
         trip.loc[(trip['mode']==9) & (trip['num_travelers']>2), 'dorp'] = 13
         
-        trip['depart_hour'] = trip['depart_time_imputed'].str.split(expand=True)[1].str.split(':',expand=True)[0].astype(int)
-        trip['depart_minute'] = trip['depart_time_imputed'].str.split(expand=True)[1].str.split(':',expand=True)[1].astype(int)
+        trip['depart_hour'] = pd.to_datetime(trip['depart_time_imputed']).dt.hour
+        trip['depart_minute'] = pd.to_datetime(trip['depart_time_imputed']).dt.minute
         
         trip['deptm'] = trip['depart_hour']*100 + trip['depart_minute']
+        if 'arrive_hour' not in trip.columns:
+            trip['arrive_hour'] = pd.to_datetime(trip['arrive_time']).dt.hour
+            trip['arrive_minute'] = pd.to_datetime(trip['arrive_time']).dt.minute
         trip['arrtm'] = trip['arrive_hour']*100 + trip['arrive_minute']
         
         trip['oxcord'] = trip['o_lon']
