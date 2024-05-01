@@ -1,12 +1,16 @@
-from os.path import join
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-DIR = "."
+# TODO update the pd _append logic to not do appends (deprecated)
 
-trip = pd.read_csv(join(DIR, "temp_tripx.dat"), sep=" ")
-ORIG_COLS = [col for col in trip.columns if col != "mode_type_imputed"]
+DIR = Path(
+    "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240329/02-reformat"
+)
+
+trip = pd.read_csv(DIR / "temp_tripx.dat", sep=" ")
+ORIG_COLS = trip.columns
 
 min_trips = (
     trip[["hhno", "pno", "dow", "tripno"]]
@@ -36,7 +40,6 @@ trip = trip.merge(max_trips, how="left", on=["hhno", "pno"])
 trip["last_ofper"] = 0
 trip.loc[trip["tripno"] == trip["tripno_max_per"], "last_ofper"] = 1
 
-trip = trip.rename(columns={"mode_type_imputed": "modeimp"})
 trips_nxt = trip.copy()
 trips_nxt["tripno"] = trips_nxt["tripno"] - 1
 NXT_COLS = [
@@ -50,7 +53,7 @@ NXT_COLS = [
     "dxcord",
     "dycord",
     "first_ofday",
-    "modeimp",
+    "mode_type",
 ]
 trips_nxt = trips_nxt[["hhno", "pno", "tripno"] + NXT_COLS]
 
@@ -110,14 +113,14 @@ def merge_trips(rownum, skip, mode):
         tmp_dict["mode"] = mode
         tmp_dict["otaz"] = trip.loc[rownum, "otaz"]
         tmp_dict["dtaz"] = trip.loc[rownum, "dtaz_nxt"]
-        tmp_dict["acc_mode"] = trip.loc[rownum, "modeimp"]
-        tmp_dict["egr_mode"] = trip.loc[rownum, "modeimp_nxt"]
+        tmp_dict["acc_mode"] = trip.loc[rownum, "mode_type"]
+        tmp_dict["egr_mode"] = trip.loc[rownum, "mode_type_nxt"]
 
         tmp_flag = True
     elif tmp_flag:
         tmp_dict["mode"] = mode
         tmp_dict["dtaz"] = trip.loc[rownum, "dtaz_nxt"]
-        tmp_dict["egr_mode"] = trip.loc[rownum, "modeimp_nxt"]
+        tmp_dict["egr_mode"] = trip.loc[rownum, "mode_type_nxt"]
 
     trip.loc[rownum, "dpurp"] = trip.loc[rownum, "dpurp_nxt"]
     trip.loc[rownum, "dpcl"] = trip.loc[rownum, "dpcl_nxt"]
@@ -142,7 +145,7 @@ def merge_trips(rownum, skip, mode):
     trip.loc[rownum, "path_nxt"] = trip.loc[rownum + skip, "path_nxt"]
     trip.loc[rownum, "dxcord_nxt"] = trip.loc[rownum + skip, "dxcord_nxt"]
     trip.loc[rownum, "dycord_nxt"] = trip.loc[rownum + skip, "dycord_nxt"]
-    trip.loc[rownum, "modeimp_nxt"] = trip.loc[rownum + skip, "modeimp_nxt"]
+    trip.loc[rownum, "mode_type_nxt"] = trip.loc[rownum + skip, "mode_type_nxt"]
 
     delete_list.append(
         [
@@ -198,14 +201,14 @@ while i < len(trip):
     elif trip.loc[i, "last_ofper"] == 1 and dpurp == 10:
         trip.loc[i, "dpurp"] = 4  # just assume this is personal business
         if tmp_flag:
-            accegr_df = accegr_df.append(tmp_dict)
+            accegr_df = accegr_df._append(tmp_dict)
             tmp_flag = False
         i += 1
         continue
     elif trip.loc[i, "last_ofday"] == 1 and np.isnan(trip.loc[i, "dpurp_nxt"]):
         trip.loc[i, "dpurp"] = 4  # just assume this is personal business
         if tmp_flag:
-            accegr_df = accegr_df.append(tmp_dict)
+            accegr_df = accegr_df._append(tmp_dict)
             tmp_flag = False
         i += 1
         continue
@@ -237,7 +240,7 @@ while i < len(trip):
         #       print('check this case in initial: %s, %s' %(hhno, tripno))
         trip.loc[i, "dpurp"] = 4  # just assume this is personal business
         if tmp_flag:
-            accegr_df = accegr_df.append(tmp_dict)
+            accegr_df = accegr_df._append(tmp_dict)
             tmp_flag = False
         i += 1
         continue
@@ -276,14 +279,14 @@ while i < len(trip):
             #           print('check this case in loop: %s, %s' %(hhno, tripno))
             trip.loc[i, "dpurp"] = 4  # just assume this is personal business
             if tmp_flag:
-                accegr_df = accegr_df.append(tmp_dict, ignore_index=True)
+                accegr_df = accegr_df._append(tmp_dict, ignore_index=True)
                 tmp_flag = False
             break
 
         final_dpurp = trip.loc[i, "dpurp"]
 
     if tmp_flag:
-        accegr_df = accegr_df.append(tmp_dict, ignore_index=True)
+        accegr_df = accegr_df._append(tmp_dict, ignore_index=True)
         tmp_flag = False
     i = i + j
     continue
@@ -299,7 +302,7 @@ trip = trip.merge(del_df, how="left")
 trip.loc[pd.isna(trip["del_flag"]), "del_flag"] = 0
 
 print(len(trip))
-trip.to_csv(join(DIR, "temp_tripx_linked_detail_week.csv"), index=False)
+trip.to_csv(DIR / "temp_tripx_linked_detail_week.csv", index=False)
 
 trip = trip.loc[trip["del_flag"] == 0, ORIG_COLS]
 print(len(trip))
@@ -311,6 +314,5 @@ df_count = (
 )
 trip["lintripno"] = np.concatenate(df_count["tripno"].apply(lambda x: range(1, x + 1)))
 
-trip.to_csv(join(DIR, "temp_tripx_linked_week.dat"), sep=" ", index=False)
-
-accegr_df.to_csv(join(DIR, "accegr_week.csv"), index=False)
+trip.to_csv(DIR / "temp_tripx_linked_week.dat", sep=" ", index=False)
+accegr_df.to_csv(DIR / "accegr_week.csv", index=False)
