@@ -2,16 +2,57 @@
 
 import argparse
 import datetime
+import tomllib
 from pathlib import Path
 
 import polars as pl
-import tomllib
 
 OUT_SEP = " "
 COUNTY_FIPS = [1, 13, 41, 55, 75, 81, 85, 95, 97]
 
 
-def reformat_person(in_person_filepath, logfile):
+def load_day_completeness(in_day_filepath):
+    weekday_nums = ["1", "2", "3", "4", "5"]
+    weekend_nums = ["6", "7"]
+    return (
+        pl.read_csv(in_day_filepath, columns=["person_id", "is_complete", "travel_dow"])
+        .pivot(index="person_id", columns="travel_dow", values="is_complete")
+        .fill_null(0)
+        .with_columns(
+            num_days_complete_weekday=pl.sum_horizontal(weekday_nums),
+            # num_days_complete_weekend=pl.sum_horizontal(weekend_nums),
+        )
+        # .with_columns(
+        #     num_days_complete=pl.sum_horizontal(
+        #         "num_days_complete_weekday"#, "num_days_complete_weekend"
+        #     )
+        # )
+        .select(
+            ["person_id"]
+            + weekday_nums
+            + weekend_nums
+            + [
+                "num_days_complete_weekday",
+                # "num_days_complete_weekend",
+                # "num_days_complete",
+            ]
+        )
+        .rename(
+            {
+                "person_id": "pno",
+                "1": "mon_complete",
+                "2": "tue_complete",
+                "3": "wed_complete",
+                "4": "thu_complete",
+                "5": "fri_complete",
+                "6": "sat_complete",
+                "7": "sun_complete",
+            }
+        )
+    )
+
+
+def reformat_person(in_person_filepath, day_with_completeness, logfile):
     """Person file processing"""
     print(f"Person file processing started: {datetime.datetime.now()}")
     logfile.write(f"\nPerson file processing started: {datetime.datetime.now()}\n")
@@ -95,20 +136,20 @@ def reformat_person(in_person_filepath, logfile):
         "psycord",
         "pownrent",  # for joining to hh table later (usu in hh for Daysim)
         "prestype",  # for joining to hh table later (usu in hh for Daysim)
+        "mon_complete",
+        "tue_complete",
+        "wed_complete",
+        "thu_complete",
+        "fri_complete",
+        "sat_complete",
+        "sun_complete",
+        "num_days_complete_weekday",
         "num_days_complete",
     ]
     if weighted:
         person_out_cols += [
             "wt_alladult_wkday",
             "wt_alladult_7day",
-            "mon_complete",
-            "tue_complete",
-            "wed_complete",
-            "thu_complete",
-            "fri_complete",
-            "sat_complete",
-            "sun_complete",
-            "num_days_complete_weekday",  # moved to the hh table in 2022
         ]
     person = (
         pl.read_csv(
@@ -238,6 +279,7 @@ def reformat_person(in_person_filepath, logfile):
             .then(pl.col("psycord"))
             .otherwise(pl.lit(-1)),
         )
+        .join(day_with_completeness, on="pno", how="left")
         .select(person_out_cols)
         .sort(by=["hhno", "pno"])
     )
@@ -587,6 +629,7 @@ if __name__ == "__main__":
     in_hh_filepath = in_dir / config["input"]["hh_filename"]
     in_person_filepath = in_dir / config["input"]["person_filename"]
     in_trip_filepath = in_dir / config["input"]["trip_filename"]
+    in_day_filepath = Path(config["raw"]["dir"]) / "day.csv"
 
     out_dir = Path(config["output"]["dir"])
     out_dir.mkdir(exist_ok=True)
@@ -594,7 +637,9 @@ if __name__ == "__main__":
     out_person_filepath = out_dir / config["output"]["person_filename"]
     out_trip_filepath = out_dir / config["output"]["trip_filename"]
 
-    person = reformat_person(in_person_filepath, logfile)
+    person = reformat_person(
+        in_person_filepath, load_day_completeness(in_day_filepath), logfile
+    )
     person.write_csv(out_person_filepath, separator=OUT_SEP)
     hh = reformat_hh(in_hh_filepath, person, logfile)
     hh.write_csv(out_hh_filepath, separator=OUT_SEP)

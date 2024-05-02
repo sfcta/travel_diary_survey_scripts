@@ -1,3 +1,6 @@
+[raw]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240329"
+
 [input]
 dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240329/01-taz_spatial_join"
 hh_filename = "hh-taz_spatial_join.csv"

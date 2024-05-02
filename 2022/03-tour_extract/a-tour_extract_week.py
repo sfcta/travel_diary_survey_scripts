@@ -17,10 +17,7 @@ DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "su
 MAXTOUR = 75
 
 weighted = False  # TODO add as argparse option; only received unweighted so far
-# NOTE TODO since num_days_complete_weekday is not available in the person table
-# right now, we will use the 7 days weight for now:
-# NOTE TODO the 4 days weights were uncommented in 2019
-weekdays_only = False  # 4 or 7 days
+weekdays_only = True  # 4 or 7 days
 
 if weekdays_only:
     WT_COMPLETE_COL = "num_days_complete_weekday"
