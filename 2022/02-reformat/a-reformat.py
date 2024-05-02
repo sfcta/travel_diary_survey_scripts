@@ -95,6 +95,7 @@ def reformat_person(in_person_filepath, logfile):
         "psycord",
         "pownrent",  # for joining to hh table later (usu in hh for Daysim)
         "prestype",  # for joining to hh table later (usu in hh for Daysim)
+        "num_days_complete",
     ]
     if weighted:
         person_out_cols += [
@@ -107,8 +108,7 @@ def reformat_person(in_person_filepath, logfile):
             "fri_complete",
             "sat_complete",
             "sun_complete",
-            "nwkdaywts_complete",
-            "n7daywts_complete",
+            "num_days_complete_weekday",  # moved to the hh table in 2022
         ]
     person = (
         pl.read_csv(
@@ -198,6 +198,7 @@ def reformat_person(in_person_filepath, logfile):
                 & pl.col("employment").is_in([1, 2, 3])
             )
             .then(pl.lit(2))  # paid part time
+            .otherwise(pl.lit(0))
         )
         .with_columns(
             # pwtaz, pstaz, pwpcl, pspcl: only keep those within Bay Area
@@ -576,7 +577,7 @@ if __name__ == "__main__":
     with open(args.config_filepath, "rb") as f:
         config = tomllib.load(f)
 
-    logfilename = "reformat_survey.log"
+    logfilename = "a-reformat.log"
     logfile = open(logfilename, "w")
     logfile.write(
         "Reformat survey program started: " + str(datetime.datetime.now()) + "\n"
