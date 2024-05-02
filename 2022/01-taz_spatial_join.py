@@ -8,7 +8,6 @@ with the following columns added:
     trip.csv: {o, d}_{maz, taz}
 """
 
-import os
 from pathlib import Path
 
 import geopandas as gpd
@@ -16,6 +15,7 @@ import pandas as pd
 
 
 def sjoin_maz(df: pd.DataFrame, maz: gpd.GeoDataFrame, var_prefix: str):
+    survey_crs = "EPSG:4326"
     return (
         gpd.GeoDataFrame(
             df,
@@ -24,7 +24,10 @@ def sjoin_maz(df: pd.DataFrame, maz: gpd.GeoDataFrame, var_prefix: str):
             ),
             crs=survey_crs,
         )
-        .sjoin(maz, how="left", predicate="within")
+        .to_crs(maz.crs)  # since sjoin_nearest requires a projected CRS
+        # can't just use sjoin(predicate="within"), because the MAZs in the MAZ GIS file
+        # aren't contiguous; there's many gaps between MAZs
+        .sjoin_nearest(maz, how="left")
         # column index_right was generated from the sjoin
         .drop(columns=["geometry", "index_right"])
         .rename(columns={"MAZID": f"{var_prefix}_maz", "TAZ": f"{var_prefix}_taz"})
@@ -38,11 +41,10 @@ if __name__ == "__main__":
         r"Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329"
     )
     taz_spatial_join_dir = survey_data_dir / "01-taz_spatial_join"
-    os.makedirs(taz_spatial_join_dir, exist_ok=True)
+    taz_spatial_join_dir.mkdir(exist_ok=True)
     maz_filepath = r"Q:\GIS\Model\MAZ\MAZ40051.shp"
-    survey_crs = "EPSG:4326"
 
-    maz = gpd.read_file(maz_filepath)[["MAZID", "TAZ", "geometry"]].to_crs(survey_crs)
+    maz = gpd.read_file(maz_filepath)[["MAZID", "TAZ", "geometry"]]
     hh = pd.read_csv(survey_data_dir / "hh.csv")
     person = pd.read_csv(survey_data_dir / "person.csv")
     trip = pd.read_csv(survey_data_dir / "trip.csv")
