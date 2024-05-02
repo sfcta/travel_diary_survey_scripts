@@ -1,6 +1,6 @@
 import datetime
-import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -16,17 +16,26 @@ DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "su
 
 MAXTOUR = 75
 
-HH_WT_COL = "wt_alladult_wkday"
-PER_WT_COL = "wt_alladult_wkday"
-TRIP_WT_COL = "daywt_alladult_wkday"
-WT_COMPLETE_COL = "nwkdaywts_complete"
-# NUM_DAYS = 4
+weighted = False  # TODO add as argparse option; only received unweighted so far
+# NOTE TODO since num_days_complete_weekday is not available in the person table
+# right now, we will use the 7 days weight for now:
+# NOTE TODO the 4 days weights were uncommented in 2019
+weekdays_only = False  # 4 or 7 days
 
-# HH_WT_COL = 'wt_alladult_7day'
-# PER_WT_COL = 'wt_alladult_7day'
-# TRIP_WT_COL = 'daywt_alladult_7day'
-# WT_COMPLETE_COL = 'n7daywts_complete'
-# NUM_DAYS = 7
+if weekdays_only:
+    WT_COMPLETE_COL = "num_days_complete_weekday"
+else:
+    WT_COMPLETE_COL = "num_days_complete"
+
+if weighted:
+    if weekdays_only:  # 4 days
+        HH_WT_COL = "wt_alladult_wkday"
+        PER_WT_COL = "wt_alladult_wkday"
+        TRIP_WT_COL = "daywt_alladult_wkday"
+    else:  # 7 days
+        HH_WT_COL = "wt_alladult_7day"
+        PER_WT_COL = "wt_alladult_7day"
+        TRIP_WT_COL = "daywt_alladult_7day"
 
 
 # compares floating point numbers
@@ -43,6 +52,7 @@ def clock(mins):
 
 
 if __name__ == "__main__":
+    # TODO move to using argparse + toml
     if len(sys.argv) < 2:
         print(
             "Please provide a control file which contains all the required input parameters as an argument!"
@@ -54,12 +64,10 @@ if __name__ == "__main__":
             )
         )
         # Initiate log file
-        logfilename = "tour_extract_survey_week.log"
+        logfilename = "a-tour_extract_week.log"
         logfile = open(logfilename, "w")
         logfile.write(
-            "Tour extract survey program started: "
-            + str(datetime.datetime.now())
-            + "\n"
+            f"Tour extract survey program started: {datetime.datetime.now()}\n"
         )
 
         inputctlfile = sys.argv[1]
@@ -70,7 +78,7 @@ if __name__ == "__main__":
                 param = (str.split(ctlfileline)[0]).upper()
                 value = str.split(ctlfileline)[1]
                 if param == "INDIR":
-                    inputdir = value
+                    in_dir = Path(value)
                 elif param == "INHHFILE":
                     inhhfilename = value
                 elif param == "INPERFILE":
@@ -79,7 +87,7 @@ if __name__ == "__main__":
                     intripfilename = value
 
                 elif param == "OUTDIR":
-                    outputdir = value
+                    out_dir = Path(value)
                 elif param == "OUTHHFILE":
                     outhhfilename = value
                 elif param == "OUTHDAYFILE":
@@ -93,29 +101,33 @@ if __name__ == "__main__":
                 elif param == "OUTTRIPFILE":
                     outtripfilename = value
 
-        inhhfilename = inputdir + os.sep + inhhfilename
-        inperfilename = inputdir + os.sep + inperfilename
-        intripfilename = inputdir + os.sep + intripfilename
+        inhhfilename = in_dir / inhhfilename
+        inperfilename = in_dir / inperfilename
+        intripfilename = in_dir / intripfilename
 
-        outhhfilename = outputdir + os.sep + outhhfilename
-        outhdayfilename = outputdir + os.sep + outhdayfilename
-        outperfilename = outputdir + os.sep + outperfilename
-        outpdayfilename = outputdir + os.sep + outpdayfilename
-        outtourfilename = outputdir + os.sep + outtourfilename
-        outtripfilename = outputdir + os.sep + outtripfilename
+        out_dir.mkdir(exist_ok=True)
+        outhhfilename = out_dir / outhhfilename
+        outhdayfilename = out_dir / outhdayfilename
+        outperfilename = out_dir / outperfilename
+        outpdayfilename = out_dir / outpdayfilename
+        outtourfilename = out_dir / outtourfilename
+        outtripfilename = out_dir / outtripfilename
 
         hh = pd.read_csv(inhhfilename, sep=" ")
-        hh["hhexpfac"] = hh[HH_WT_COL]
         persons = pd.read_csv(inperfilename, sep=" ")
-        persons["psexpfac"] = persons[PER_WT_COL]
         trip = pd.read_csv(intripfilename, sep=" ")
-        trip["trexpfac"] = trip[TRIP_WT_COL]
+        if weighted:
+            hh["hhexpfac"] = hh[HH_WT_COL]
+            persons["psexpfac"] = persons[PER_WT_COL]
+            # NOTE TODO trexpfac: doesn't seem to be actually used
+            # seems like the `wt` var is just (over)written to this column
+            trip["trexpfac"] = trip[TRIP_WT_COL]
 
         # remove some bad records
         r1 = trip.shape[0]
         trip = trip[(trip["opurp"] >= 0) | (trip["dpurp"] >= 0)]
         r2 = trip.shape[0]
-        s = "Removed %s bad records with missing opurp and dpurp" % (r1 - r2)
+        s = f"Removed {r1 - r2} bad records with missing opurp and dpurp"
         print(s)
         logfile.write(s + "\n")
 
@@ -167,7 +179,10 @@ if __name__ == "__main__":
         pgend = np.empty(PMAX, dtype=int)
         pwtaz = np.empty(PMAX)
         pstaz = np.empty(PMAX)
-        pexpwt = np.empty(PMAX)
+        if weighted:
+            pexpwt = np.empty(PMAX)
+        else:
+            pexpwt = np.ones(PMAX)
         pwxco = np.empty(PMAX)
         pwyco = np.empty(PMAX)
         psxco = np.empty(PMAX)
@@ -175,9 +190,6 @@ if __name__ == "__main__":
         pwpcl = np.empty(PMAX)
         pspcl = np.empty(PMAX)
 
-        wkday_flag_dict = {}
-        for i in range(1, PMAX + 1):
-            wkday_flag_dict[i] = {}
         num_wkdays = np.empty(PMAX)
 
         tsvid = np.empty((PMAX, TMAX), dtype=int)
@@ -277,19 +289,13 @@ if __name__ == "__main__":
                 psyco[p] = hpers["psycord"][p - 1]
                 pagey[p] = hpers["pagey"][p - 1]
                 pgend[p] = hpers["pgend"][p - 1]
-                pexpwt[p] = hpers["psexpfac"][p - 1]
+                if weighted:
+                    pexpwt[p] = hpers["psexpfac"][p - 1]
                 pwpcl[p] = hpers["pwpcl"][p - 1]
                 pspcl[p] = hpers["pspcl"][p - 1]
                 hhxco = hh["hxcord"][h]
                 hhyco = hh["hycord"][h]
 
-                wkday_flag_dict[p]["mon_complete"] = hpers["mon_complete"][p - 1]
-                wkday_flag_dict[p]["tue_complete"] = hpers["tue_complete"][p - 1]
-                wkday_flag_dict[p]["wed_complete"] = hpers["wed_complete"][p - 1]
-                wkday_flag_dict[p]["thu_complete"] = hpers["thu_complete"][p - 1]
-                wkday_flag_dict[p]["fri_complete"] = hpers["fri_complete"][p - 1]
-                wkday_flag_dict[p]["sat_complete"] = hpers["sat_complete"][p - 1]
-                wkday_flag_dict[p]["sun_complete"] = hpers["sun_complete"][p - 1]
                 num_wkdays[p] = hpers[WT_COMPLETE_COL][p - 1]
 
                 hpertrips = trip.loc[
@@ -741,9 +747,9 @@ if __name__ == "__main__":
                     + "hhxco"
                     + delim
                     + "hhyco"
-                    + delim
-                    + "hhexpfac"
                 )
+                if weighted:
+                    header += delim + "hhexpfac"
                 outhhfile.write(header + "\n")
                 hfheader = 1
             outrec = (
@@ -784,9 +790,9 @@ if __name__ == "__main__":
                 + str(hhxco)
                 + delim
                 + str(hhyco)
-                + delim
-                + str(hh["hhexpfac"][h])
             )
+            if weighted:
+                outrec += delim + str(hh["hhexpfac"][h])
             outhhfile.write(outrec + "\n")
             outhhfile.flush()
 
@@ -837,9 +843,9 @@ if __name__ == "__main__":
                         + "pdiary"
                         + delim
                         + "pproxy"
-                        + delim
-                        + "psexpfac"
                     )
+                    if weighted:
+                        header += delim + "psexpfac"
                     outperfile.write(header + "\n")
                     pfheader = 1
                 outrec = (
@@ -1401,15 +1407,8 @@ if __name__ == "__main__":
         outtourfile.flush()
         outtripfile.flush()
 
-        logfile.write("\n")
         logfile.write(
-            "Tour extract survey week program finished: "
-            + str(datetime.datetime.now())
-            + "\n"
+            f"\nTour extract survey week program finished: {datetime.datetime.now()}\n"
         )
         logfile.close()
-        print(
-            "Tour extract survey week program finished: {}".format(
-                datetime.datetime.now()
-            )
-        )
+        print(f"Tour extract survey week program finished: {datetime.datetime.now()}")
