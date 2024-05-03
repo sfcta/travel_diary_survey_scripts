@@ -179,7 +179,7 @@ if __name__ == "__main__":
         if weighted:
             pexpwt = np.empty(PMAX)
         else:
-            pexpwt = np.ones(PMAX)
+            pexpwt = np.ones(PMAX)  # assign weights of 1 if dataset unweighted
         pwxco = np.empty(PMAX)
         pwyco = np.empty(PMAX)
         psxco = np.empty(PMAX)

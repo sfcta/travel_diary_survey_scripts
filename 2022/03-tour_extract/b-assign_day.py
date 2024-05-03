@@ -1,4 +1,4 @@
-import pathlib as Path
+from pathlib import Path
 
 import pandas as pd
 
@@ -8,20 +8,34 @@ BASE_DIR = Path(
 RAW_DIR = Path(
     r"Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329\01-taz_spatial_join"
 )
+reformat_dir = Path(
+    r"Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329\02-reformat"
+)
+reformatted_person_filepath = reformat_dir / "temp_precx.dat"
+raw_trips_filepath = RAW_DIR / "trip-taz_spatial_join.csv"
 DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}
 
 # WT_CAP = 10000
 # out_dir = 'wt_wkday_cap'
+
 WT_CAP = None
 out_dir = "wt_wkday"
 wt_col = "wt_alladult_wkday"
-wt_num = "nwkdaywts_complete"
+wt_num = "num_days_complete_weekday"
 wt_days = [1, 2, 3, 4]
 
-# out_dir = 'wt_7day'
-# wt_col = 'wt_alladult_7day'
-# wt_num = 'n7daywts_complete'
-# wt_days = [1,2,3,4,5,6,7]
+# out_dir = "wt_7day"
+# wt_col = "wt_alladult_7day"
+# wt_num = "num_days_complete"
+# wt_days = [1, 2, 3, 4, 5, 6, 7]
+
+out_dir = BASE_DIR / out_dir
+out_dir.mkdir(exist_ok=True)
+
+weighted = False  # TODO add as argparse option; only received unweighted so far
+
+# TODO Why are we using the output of 01-taz_spatial_join (and redoing
+# reformat/analysis) when we have already done 02a-reformat?
 
 
 # function to link drive transit trips
@@ -57,52 +71,47 @@ hh = pd.read_csv(BASE_DIR / "survey2018_hrecx.dat", sep=" ")
 hh_cols = hh.columns
 
 # read in raw person file for weight info
-raw_per = pd.read_csv(BASE_DIR / "ex_person_wZones.csv")
-raw_per = raw_per[
-    [
-        "hh_id",
-        "person_num",
-        "wt_alladult_wkday",
-        "wt_alladult_7day",
-        "nwkdaywts_complete",
-        "n7daywts_complete",
-        "mon_complete",
-        "tue_complete",
-        "wed_complete",
-        "thu_complete",
-        "fri_complete",
-        "sat_complete",
-        "sun_complete",
-    ]
+person_reformatted_cols = [
+    "hhno",
+    "pno",
+    "num_days_complete_weekday",
+    "num_days_complete",
+    "mon_complete",
+    "tue_complete",
+    "wed_complete",
+    "thu_complete",
+    "fri_complete",
+    "sat_complete",
+    "sun_complete",
 ]
-raw_per = raw_per.rename(columns={"hh_id": "hhno", "person_num": "pno"})
+if weighted:
+    person_reformatted_cols += ["wt_alladult_wkday", "wt_alladult_7day"]
+person_reformatted = pd.read_csv(
+    reformatted_person_filepath, usecols=person_reformatted_cols, sep=" "
+)
+
 if WT_CAP is not None:
-    raw_per.loc[raw_per[wt_col] > WT_CAP, wt_col] = WT_CAP
-raw_per["weight"] = raw_per[wt_col] / raw_per[wt_num]
+    person_reformatted.loc[person_reformatted[wt_col] > WT_CAP, wt_col] = WT_CAP
+if not weighted:
+    # assign weights of 1 if dataset unweighted
+    person_reformatted[wt_col] = 1
+person_reformatted["weight"] = person_reformatted[wt_col] / person_reformatted[wt_num]
 
 # read in raw trip file for dow info
-raw_trips = pd.read_csv(BASE_DIR / "ex_trip_wZones.csv")
+raw_trips = pd.read_csv(raw_trips_filepath)
 
 if "trip_num" not in raw_trips.columns:
     raw_trips = raw_trips.rename(columns={"linked_trip_id": "trip_num"})
-if "travel_date_dow" not in raw_trips.columns:
-    day = pd.read_csv(BASE_DIR / "day.csv")
-    day = day[["person_id", "day_num", "travel_date_dow"]]
-    day["person_id"] = day["person_id"].round()
-    raw_trips["person_id"] = raw_trips["person_id"].round()
-    raw_trips = raw_trips.merge(day, on=["person_id", "day_num"])
 
 raw_trips = raw_trips[
     [
         "hh_id",
         "person_num",
         "trip_num",
-        "travel_date_dow",
-        "o_purpose_category_imputed",
-        "d_purpose_category_imputed",
+        "travel_dow",
     ]
 ]
-raw_trips.columns = ["hhno", "pno", "tsvid", "dow", "opurp", "dpurp"]
+raw_trips.columns = ["hhno", "pno", "tsvid", "dow"]
 trip = trip.merge(raw_trips[["hhno", "pno", "tsvid", "dow"]], how="left")
 trip["count"] = 1
 # derive dow with maximum trips in a given tour
@@ -122,35 +131,37 @@ tour_dow = tour_dow[["hhno", "pno", "tour", "dow"]]
 tour = tour.merge(tour_dow, how="left")
 tour["day"] = tour["dow"].astype(int)
 # assign tour weight
-tour = tour.merge(raw_per[["hhno", "pno", "weight"]], how="left")
+tour = tour.merge(person_reformatted[["hhno", "pno", "weight"]], how="left")
 tour["toexpfac"] = 0
 tour.loc[tour["day"].isin(wt_days), "toexpfac"] = tour.loc[
     tour["day"].isin(wt_days), "weight"
 ]
 tour["toexpfac"] = tour["toexpfac"].fillna(0)
 tour = tour[tour_cols]
-tour.to_csv(BASE_DIR / out_dir, "survey2018_tourx.dat", sep=" ", index=False)
+tour.to_csv(out_dir / "survey2018_tourx.dat", sep=" ", index=False)
 
 # assign trip dow
 trip = trip.drop(["day", "dow"], axis=1)
 trip = trip.merge(tour_dow, how="left")
 trip["day"] = trip["dow"].astype(int)
 # assign trip weight
-trip = trip.merge(raw_per[["hhno", "pno", "weight"]], how="left")
+trip = trip.merge(person_reformatted[["hhno", "pno", "weight"]], how="left")
 trip["trexpfac"] = 0
 trip.loc[trip["day"].isin(wt_days), "trexpfac"] = trip.loc[
     trip["day"].isin(wt_days), "weight"
 ]
 trip["trexpfac"] = trip["trexpfac"].fillna(0)
 trip = trip[trip_cols]
-trip.to_csv(BASE_DIR / out_dir, "survey2018_tripx.dat", sep=" ", index=False)
+trip.to_csv(out_dir / "survey2018_tripx.dat", sep=" ", index=False)
 
 # create pday file
 pday_out = pd.DataFrame()
 for key, val in DOW_LOOKUP.items():
-    df = raw_per.loc[raw_per[val + "_complete"] == 1, ["hhno", "pno"]]
+    df = person_reformatted.loc[
+        person_reformatted[val + "_complete"] == 1, ["hhno", "pno"]
+    ]
     df["day"] = key
-    pday_out = pday_out.append(df)
+    pday_out = pday_out._append(df)  # TODO refactor to not use append logic
 
 # calculate tours
 tour["pdpurp2"] = tour["pdpurp"]
@@ -270,7 +281,7 @@ pday_out["metours"] = 0
 pday_out["restops"] = 0
 pday_out["mestops"] = 0
 
-pday_out = pday_out.merge(raw_per[["hhno", "pno", "weight"]], how="left")
+pday_out = pday_out.merge(person_reformatted[["hhno", "pno", "weight"]], how="left")
 pday_out["pdexpfac"] = 0
 pday_out.loc[pday_out["day"].isin(wt_days), "pdexpfac"] = pday_out.loc[
     pday_out["day"].isin(wt_days), "weight"
@@ -278,13 +289,13 @@ pday_out.loc[pday_out["day"].isin(wt_days), "pdexpfac"] = pday_out.loc[
 pday_out = pday_out.fillna(0)
 pday_out = pday_out[pday_cols]
 # pday_out[:-1] = pday_out[:-1].astype(int)
-pday_out.to_csv(BASE_DIR / out_dir, "survey2018_pdayx.dat", sep=" ", index=False)
+pday_out.to_csv(out_dir / "survey2018_pdayx.dat", sep=" ", index=False)
 
 # assign person weight
-per = per.merge(raw_per[["hhno", "pno", wt_col]], how="left")
+per = per.merge(person_reformatted[["hhno", "pno", wt_col]], how="left")
 per["psexpfac"] = per[wt_col]
 per["psexpfac"] = per["psexpfac"].fillna(0)
 per = per[per_cols]
-per.to_csv(BASE_DIR / out_dir, "survey2018_precx.dat", sep=" ", index=False)
+per.to_csv(out_dir / "survey2018_precx.dat", sep=" ", index=False)
 # no changes to hh file
-hh.to_csv(BASE_DIR / out_dir, "survey2018_hrecx.dat", sep=" ", index=False)
+hh.to_csv(out_dir / "survey2018_hrecx.dat", sep=" ", index=False)
