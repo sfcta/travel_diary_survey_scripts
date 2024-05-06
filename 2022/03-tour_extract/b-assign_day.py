@@ -11,7 +11,7 @@ RAW_DIR = Path(
 reformat_dir = Path(
     r"Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329\02-reformat"
 )
-reformatted_person_filepath = reformat_dir / "temp_precx.dat"
+reformatted_person_filepath = reformat_dir / "person-reformat.csv"
 raw_trips_filepath = RAW_DIR / "trip-taz_spatial_join.csv"
 DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}
 
@@ -55,19 +55,19 @@ def link_dt(df):
 
 
 # read in week files
-tour = pd.read_csv(BASE_DIR / "survey2018_tourx.dat", sep=" ")
+tour = pd.read_csv(BASE_DIR / "tour-tour_extract_week.csv")
 tour_cols = tour.columns
 
-trip = pd.read_csv(BASE_DIR / "survey2018_tripx.dat", sep=" ")
+trip = pd.read_csv(BASE_DIR / "trip-tour_extract_week.csv")
 trip_cols = trip.columns
 
-pday = pd.read_csv(BASE_DIR / "survey2018_pdayx.dat", sep=" ")
+pday = pd.read_csv(BASE_DIR / "personday-tour_extract_week.csv")
 pday_cols = pday.columns
 
-per = pd.read_csv(BASE_DIR / "survey2018_precx.dat", sep=" ")
+per = pd.read_csv(BASE_DIR / "person-tour_extract_week.csv")
 per_cols = per.columns
 
-hh = pd.read_csv(BASE_DIR / "survey2018_hrecx.dat", sep=" ")
+hh = pd.read_csv(BASE_DIR / "hh-tour_extract_week.csv")
 hh_cols = hh.columns
 
 # read in raw person file for weight info
@@ -87,7 +87,7 @@ person_reformatted_cols = [
 if weighted:
     person_reformatted_cols += ["wt_alladult_wkday", "wt_alladult_7day"]
 person_reformatted = pd.read_csv(
-    reformatted_person_filepath, usecols=person_reformatted_cols, sep=" "
+    reformatted_person_filepath, usecols=person_reformatted_cols
 )
 
 if WT_CAP is not None:
@@ -132,13 +132,13 @@ tour = tour.merge(tour_dow, how="left")
 tour["day"] = tour["dow"].astype(int)
 # assign tour weight
 tour = tour.merge(person_reformatted[["hhno", "pno", "weight"]], how="left")
-tour["toexpfac"] = 0
+tour["toexpfac"] = 0.0
 tour.loc[tour["day"].isin(wt_days), "toexpfac"] = tour.loc[
     tour["day"].isin(wt_days), "weight"
 ]
 tour["toexpfac"] = tour["toexpfac"].fillna(0)
 tour = tour[tour_cols]
-tour.to_csv(out_dir / "survey2018_tourx.dat", sep=" ", index=False)
+tour.to_csv(out_dir / "tour-assign_day.csv", index=False)
 
 # assign trip dow
 trip = trip.drop(["day", "dow"], axis=1)
@@ -146,13 +146,13 @@ trip = trip.merge(tour_dow, how="left")
 trip["day"] = trip["dow"].astype(int)
 # assign trip weight
 trip = trip.merge(person_reformatted[["hhno", "pno", "weight"]], how="left")
-trip["trexpfac"] = 0
+trip["trexpfac"] = 0.0
 trip.loc[trip["day"].isin(wt_days), "trexpfac"] = trip.loc[
     trip["day"].isin(wt_days), "weight"
 ]
 trip["trexpfac"] = trip["trexpfac"].fillna(0)
 trip = trip[trip_cols]
-trip.to_csv(out_dir / "survey2018_tripx.dat", sep=" ", index=False)
+trip.to_csv(out_dir / "trip-assign_day.csv", index=False)
 
 # create pday file
 pday_out = pd.DataFrame()
@@ -282,20 +282,20 @@ pday_out["restops"] = 0
 pday_out["mestops"] = 0
 
 pday_out = pday_out.merge(person_reformatted[["hhno", "pno", "weight"]], how="left")
-pday_out["pdexpfac"] = 0
+pday_out["pdexpfac"] = 0.0
 pday_out.loc[pday_out["day"].isin(wt_days), "pdexpfac"] = pday_out.loc[
     pday_out["day"].isin(wt_days), "weight"
 ]
 pday_out = pday_out.fillna(0)
 pday_out = pday_out[pday_cols]
 # pday_out[:-1] = pday_out[:-1].astype(int)
-pday_out.to_csv(out_dir / "survey2018_pdayx.dat", sep=" ", index=False)
+pday_out.to_csv(out_dir / "personday-assign_day.csv", index=False)
 
 # assign person weight
 per = per.merge(person_reformatted[["hhno", "pno", wt_col]], how="left")
 per["psexpfac"] = per[wt_col]
 per["psexpfac"] = per["psexpfac"].fillna(0)
 per = per[per_cols]
-per.to_csv(out_dir / "survey2018_precx.dat", sep=" ", index=False)
+per.to_csv(out_dir / "person-assign_day.csv", index=False)
 # no changes to hh file
-hh.to_csv(out_dir / "survey2018_hrecx.dat", sep=" ", index=False)
+hh.to_csv(out_dir / "hh-assign_day.csv", index=False)
