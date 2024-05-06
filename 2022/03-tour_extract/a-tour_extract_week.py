@@ -11,7 +11,7 @@ PMAX = 15
 DMAX = 1
 TMAX = 200
 NPTYPES = 9
-delim = " "
+delim = ","
 DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}
 
 MAXTOUR = 75
@@ -110,8 +110,8 @@ if __name__ == "__main__":
         outtourfilename = out_dir / outtourfilename
         outtripfilename = out_dir / outtripfilename
 
-        hh = pd.read_csv(inhhfilename, sep=" ")
-        persons = pd.read_csv(inperfilename, sep=" ")
+        hh = pd.read_csv(inhhfilename)
+        persons = pd.read_csv(inperfilename)
         trip = pd.read_csv(intripfilename, sep=" ")
         if weighted:
             hh["hhexpfac"] = hh[HH_WT_COL]
@@ -230,12 +230,11 @@ if __name__ == "__main__":
         outtourfile = open(outtourfilename, "w")
         outtripfile = open(outtripfilename, "w")
 
+        # TODO rewrite logic to use dataframe operations, not loop through row by row
         for h in range(len(hh)):
             #         for h in range(1791,1792):
             hhno = hh["hhno"][h]
             hhsize = hh["hhsize"][h]
-            hometaz = hh["hhtaz"][h]
-            homepcl = hh["hhparcel"][h]
             hpers = persons.loc[persons["hhno"] == hhno,].reset_index()
 
             #             # For debugging
@@ -358,8 +357,8 @@ if __name__ == "__main__":
                         isclose(tdxco[p, t], hhxco) and isclose(tdyco[p, t], hhyco)
                     ):
                         tdtyp[p, t] = 1
-                        tdpcl[p, t] = homepcl
-                        tdtaz[p, t] = hometaz
+                        tdpcl[p, t] = hh["hhparcel"][h]
+                        tdtaz[p, t] = hh["hhtaz"][h]
                     elif tdprp[p, t] == 1 or (
                         isclose(tdxco[p, t], pwxco[p])
                         and isclose(tdyco[p, t], pwyco[p])
@@ -395,8 +394,8 @@ if __name__ == "__main__":
                         toxco[p, t] = hhxco
                         toyco[p, t] = hhyco
                         totyp[p, t] = 1
-                        topcl[p, t] = homepcl
-                        totaz[p, t] = hometaz
+                        topcl[p, t] = hh["hhparcel"][h]
+                        totaz[p, t] = hh["hhtaz"][h]
                         toprp[p, t] = 0
                     elif hpertrips["opurp"][t - 1] == 1:
                         toxco[p, t] = pwxco[p]
@@ -780,9 +779,9 @@ if __name__ == "__main__":
                 + delim
                 + str(hh["hrestype"][h])
                 + delim
-                + str(homepcl)
+                + str(hh["hhparcel"][h])
                 + delim
-                + str(hometaz)
+                + str(hh["hhtaz"][h])
                 + delim
                 + str(hhxco)
                 + delim
@@ -840,9 +839,9 @@ if __name__ == "__main__":
                         + "pdiary"
                         + delim
                         + "pproxy"
+                        + delim
+                        + "psexpfac"  # write this even if not weighted
                     )
-                    if weighted:
-                        header += delim + "psexpfac"
                     outperfile.write(header + "\n")
                     pfheader = 1
                 outrec = (
@@ -890,7 +889,7 @@ if __name__ == "__main__":
                     + delim
                     + str(-1)
                     + delim
-                    + str(pexpwt[p])
+                    + str(pexpwt[p])  # write this even if not weighted
                 )
                 outperfile.write(outrec + "\n")
             outperfile.flush()
