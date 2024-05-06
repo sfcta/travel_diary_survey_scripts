@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import polars as pl
 from HwySkimUtil import SkimUtil2
 
 delim = " "
@@ -69,29 +70,18 @@ if __name__ == "__main__":
         outtripfilename = outputdir / outtripfilename
         outpdayfilename = outputdir / outpdayfilename
 
-        hh = pd.read_csv(inhhfilename, sep=" ")
-        print("Read household file: " + str(datetime.datetime.now()))
-        logfile.write("Read household file: " + str(datetime.datetime.now()) + "\n")
-        persons = pd.read_csv(inperfilename, sep=" ")
-        print("Read person file: " + str(datetime.datetime.now()))
-        logfile.write("Read person file: " + str(datetime.datetime.now()) + "\n")
-        pday = pd.read_csv(inpdayfilename, sep=" ")
-        print("Read person day file: " + str(datetime.datetime.now()))
-        logfile.write("Read person day file: " + str(datetime.datetime.now()) + "\n")
-        tour = pd.read_csv(intourfilename, sep=" ")
+        tour = pd.read_csv(intourfilename)
         print("Read tour file: " + str(datetime.datetime.now()))
         logfile.write("Read tour file: " + str(datetime.datetime.now()) + "\n")
-        trip = pd.read_csv(intripfilename, sep=" ")
+        trip = pd.read_csv(intripfilename)
         print("Read trip file: " + str(datetime.datetime.now()))
         logfile.write("Read trip file: " + str(datetime.datetime.now()) + "\n")
-
-        # output hh file
-        hh.to_csv(outhhfilename, sep=delim, index=False)
 
         WKDAY_DOW = range(1, 5)
         NONWKDAY_DOW = [5, 6, 7]
 
-        # output pday file
+        pday = pd.read_csv(inpdayfilename)
+        # output pday file  # TODO do NOT output pday, given it is entirely unchanged
         pday.to_csv(outpdayfilename, index=False, sep=delim)
         # some old code
         #         out_cols = pday.columns
@@ -112,25 +102,35 @@ if __name__ == "__main__":
         )
         print("Merge skims for persons started: " + str(datetime.datetime.now()))
 
-        persons = hh[["hhno", "hhtaz"]].merge(persons, on="hhno", how="left")
-        persons["pwautime"] = -1.0
-        persons["pwaudist"] = -1.0
-        persons["psautime"] = -1.0
-        persons["psaudist"] = -1.0
-        for i in range(len(persons)):
-            otaz = int(persons["hhtaz"][i])
-            dtaz = int(persons["pwtaz"][i])
-            if otaz > 0 and dtaz > 0:
-                skims = skimutil.getDASkims(otaz, dtaz)
-                persons.loc[i, "pwautime"] = skims[0]
-                persons.loc[i, "pwaudist"] = skims[1]
-            dtaz = int(persons["pstaz"][i])
-            if otaz > 0 and dtaz > 0:
-                skims = skimutil.getDASkims(otaz, dtaz)
-                persons.loc[i, "psautime"] = skims[0]
-                persons.loc[i, "psaudist"] = skims[1]
+        # hh is just to get hhtaz to join to person
+        hh = pl.read_csv(inhhfilename)
+        # output hh file  # TODO do NOT output hh, given it is entirely unchanged
+        hh.write_csv(outhhfilename, separator=delim)
 
-        persons.to_csv(outperfilename, sep=delim, index=False)
+        person = (
+            pl.read_csv(inperfilename)
+            .join(hh.select("hhno", "hhtaz"), on="hhno", how="left")
+            .to_pandas()
+        )
+        person["pwautime"] = -1.0
+        person["pwaudist"] = -1.0
+        person["psautime"] = -1.0
+        person["psaudist"] = -1.0
+        for i in range(len(person)):
+            print(person[["hhtaz", "pwtaz", "hhno", "pno"]].iloc[i])
+            otaz = int(person["hhtaz"][i])
+            dtaz = int(person["pwtaz"][i])
+            if otaz > 0 and dtaz > 0:
+                skims = skimutil.getDASkims(otaz, dtaz)
+                person.loc[i, "pwautime"] = skims[0]
+                person.loc[i, "pwaudist"] = skims[1]
+            dtaz = int(person["pstaz"][i])
+            if otaz > 0 and dtaz > 0:
+                skims = skimutil.getDASkims(otaz, dtaz)
+                person.loc[i, "psautime"] = skims[0]
+                person.loc[i, "psaudist"] = skims[1]
+
+        person.to_csv(outperfilename, sep=delim, index=False)
         logfile.write(
             "Merge skims for persons finished: " + str(datetime.datetime.now()) + "\n"
         )
@@ -204,7 +204,5 @@ if __name__ == "__main__":
         logfile.write(
             "Merge skims program finished: " + str(datetime.datetime.now()) + "\n"
         )
-        logfile.close()
-        print("Merge skims program finished: " + str(datetime.datetime.now()))
         logfile.close()
         print("Merge skims program finished: " + str(datetime.datetime.now()))

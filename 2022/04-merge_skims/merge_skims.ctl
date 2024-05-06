@@ -1,9 +1,9 @@
 INDIR				Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329\03-tour_extract\wt_wkday
-INHHFILE			survey2018_hrecx.dat
-INPERFILE			survey2018_precx.dat
-INTOURFILE			survey2018_tourx.dat
-INTRIPFILE			survey2018_tripx.dat
-INPDAYFILE			survey2018_pdayx.dat
+INHHFILE			hh-assign_day.csv
+INPERFILE			person-assign_day.csv
+INTOURFILE			tour-assign_day.csv
+INTRIPFILE			trip-assign_day.csv
+INPDAYFILE			personday-assign_day.csv
 SKIMDIR			X:\Projects\CHAMP7\Run25w_Market
 
 OUTDIR				Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329\04-merge_skims
