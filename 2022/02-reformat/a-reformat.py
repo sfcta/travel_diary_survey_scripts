@@ -5,10 +5,10 @@ import datetime
 import tomllib
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 
-OUT_SEP = " "
-COUNTY_FIPS = [1, 13, 41, 55, 75, 81, 85, 95, 97]
+COUNTY_FIPS = 6 * 1000 + np.array([1, 13, 41, 55, 75, 81, 85, 95, 97])  # 6 = CA
 
 
 def load_day_completeness(in_day_filepath):
@@ -19,6 +19,9 @@ def load_day_completeness(in_day_filepath):
         .pivot(index="person_id", columns="travel_dow", values="is_complete")
         .fill_null(0)
         .with_columns(
+            # person_id in day file is actually hhno*100 + pno
+            hhno=(pl.col("person_id") // 100),
+            pno=(pl.col("person_id") % 100),
             num_days_complete_weekday=pl.sum_horizontal(weekday_nums),
             # num_days_complete_weekend=pl.sum_horizontal(weekend_nums),
         )
@@ -28,7 +31,7 @@ def load_day_completeness(in_day_filepath):
         #     )
         # )
         .select(
-            ["person_id"]
+            ["hhno", "pno"]
             + weekday_nums
             + weekend_nums
             + [
@@ -39,7 +42,6 @@ def load_day_completeness(in_day_filepath):
         )
         .rename(
             {
-                "person_id": "pno",
                 "1": "mon_complete",
                 "2": "tue_complete",
                 "3": "wed_complete",
@@ -195,6 +197,9 @@ def reformat_person(in_person_filepath, day_with_completeness, logfile):
             # pownrent & prestype: for joining to hh table (to conform to Daysim)
             pownrent=pl.col("residence_rent_own").replace(residence_rent_own_dict),
             prestype=pl.col("residence_type").replace(residence_type_dict),
+            num_days_complete=pl.col("num_days_complete").replace(
+                {995: 0}  # missing -> 0
+            ),
         )
         .with_columns(
             pptyp=pl.when(pl.col("pagey") < 5)
@@ -279,7 +284,7 @@ def reformat_person(in_person_filepath, day_with_completeness, logfile):
             .then(pl.col("psycord"))
             .otherwise(pl.lit(-1)),
         )
-        .join(day_with_completeness, on="pno", how="left")
+        .join(day_with_completeness, on=["hhno", "pno"], how="left")
         .select(person_out_cols)
         .sort(by=["hhno", "pno"])
     )
@@ -640,11 +645,11 @@ if __name__ == "__main__":
     person = reformat_person(
         in_person_filepath, load_day_completeness(in_day_filepath), logfile
     )
-    person.write_csv(out_person_filepath, separator=OUT_SEP)
+    person.write_csv(out_person_filepath)
     hh = reformat_hh(in_hh_filepath, person, logfile)
-    hh.write_csv(out_hh_filepath, separator=OUT_SEP)
+    hh.write_csv(out_hh_filepath)
     trip = reformat_trip(in_trip_filepath, logfile)
-    trip.write_csv(out_trip_filepath, separator=OUT_SEP)
+    trip.write_csv(out_trip_filepath)
     print(f"2022/02-reformat/a-reformat.py done: {datetime.datetime.now()}")
     logfile.write("\n2022/02-reformat/a-reformat.py done: {datetime.datetime.now()}\n")
     logfile.close()

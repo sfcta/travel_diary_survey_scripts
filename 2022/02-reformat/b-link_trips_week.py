@@ -9,7 +9,7 @@ DIR = Path(
     "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240329/02-reformat"
 )
 
-trip = pd.read_csv(DIR / "temp_tripx.dat", sep=" ")
+trip = pd.read_csv(DIR / "trip-reformat.csv")
 ORIG_COLS = trip.columns
 
 min_trips = (

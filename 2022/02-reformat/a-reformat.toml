@@ -9,6 +9,6 @@ trip_filename = "trip-taz_spatial_join.csv"
 
 [output]
 dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240329/02-reformat"
-hh_filename = "temp_hrecx.dat"
-person_filename = "temp_precx.dat"
-trip_filename = "temp_tripx.dat"
+hh_filename = "hh-reformat.csv"
+person_filename = "person-reformat.csv"
+trip_filename = "trip-reformat.csv"
