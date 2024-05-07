@@ -6,7 +6,7 @@ INTRIPFILE			trip-assign_day.csv
 INPDAYFILE			personday-assign_day.csv
 SKIMDIR			X:\Projects\CHAMP7\Run25w_Market
 
-OUTDIR				Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329\04-merge_skims
+OUTDIR				Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329\04b-merge_skims
 OUTHHFILE				survey2018_hrecx.dat
 OUTPERFILE			survey2018_precx.dat
 OUTTOURFILE			survey2018_tourx.dat
