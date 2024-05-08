@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 sup_dist = pd.read_csv(
@@ -81,7 +80,7 @@ def prep_modetype_data(df, label, sf_flag=2):
     df = df.rename(
         columns={"modelab": "mode", "count": label_list[0], "trexpfac": label_list[1]}
     )
-    df = pd.pivot_table(df, index="mode", margins=True, aggfunc=np.sum).reset_index()
+    df = pd.pivot_table(df, index="mode", margins=True, aggfunc="sum").reset_index()
     df.loc[:, label_list] = df.loc[:, label_list].astype(int)
     return df, label_list
 
@@ -102,9 +101,9 @@ def prep_dem_data(df, col_label, colname, wtcol, cat_levels, cat_labels):
     df = df.rename(
         columns={"cat_labels": colname, "count": col_list[0], wtcol: col_list[1]}
     )
-    df = pd.pivot_table(df, index=colname, margins=True, aggfunc=np.sum).reset_index()
+    df = pd.pivot_table(df, index=colname, margins=True, aggfunc="sum").reset_index()
     df.loc[:, col_list] = df.loc[:, col_list].astype(int)
-    df_fmt = format_df(df.copy(), col_list)
+    # df_fmt = format_df(df.copy(), col_list)
     return df, df_fmt
 
 
@@ -127,10 +126,11 @@ def getRowSharesIdx(df):
 
 
 def getSharesIdxCI95(df):
+    # TODO just use statsmodels or scipy.stats to calculate CI
     df.iloc[:-1, :] = df.iloc[:-1, :].apply(
         lambda x: (x / x.sum()) * (1 - x / x.sum()), axis=0
     )
-    df = df.apply(lambda x: pow(x / x[-1], 0.5), axis=0)
+    df = df.apply(lambda x: pow(x / x.iloc[-1], 0.5), axis=0)
     df = df.iloc[:-1, :]
     df = (df * 100 * 1.96).round(1)
     return df
@@ -161,7 +161,7 @@ def plotStackedBar(df, cols):
     return df
 
 
-def write_to_excel(tab, name, title, row=0):
+def write_to_excel(writer, tab, name, title, row=0):
     t_df = pd.DataFrame({"col1": [title]})
     t_df.to_excel(writer, sheet_name=name, startrow=row, header=False, index=False)
     row += 1
@@ -190,9 +190,8 @@ def prep_data_2d(df, xcol, xvals, xlabels, ycol, yvals, ylabels, valcol):
     df = df.pivot_table(
         index=xcol, columns=ycol, values=valcol, aggfunc="sum", margins=True
     )
-
-    df_fmt = format_df(df.copy(), df.columns)
-    return df, df_fmt
+    # df_fmt = format_df(df.copy(), df.columns)
+    return df  # , df_fmt
 
 
 def prep_data_1d(df, col_label, colname, wtcol, cat_levels, cat_labels):
@@ -212,7 +211,7 @@ def prep_data_1d(df, col_label, colname, wtcol, cat_levels, cat_labels):
     df = df.rename(
         columns={"cat_labels": colname, "count": col_list[0], wtcol: col_list[1]}
     )
-    df = pd.pivot_table(df, index=colname, margins=True, aggfunc=np.sum)
+    df = pd.pivot_table(df, index=colname, margins=True, aggfunc="sum")
     #     df.loc[:,col_list] = df.loc[:,col_list].astype(int)
     return df
 
@@ -225,7 +224,7 @@ def agg_1d(df, colname, cat_levels, cat_labels, wtcol, agg_col, agg_name="metric
     df = df[[colname, wtcol, agg_col]]
     df[agg_col] = df[agg_col] * df[wtcol]
     df = pd.DataFrame(
-        pd.pivot_table(df, index=colname, margins=True, aggfunc=np.sum)
+        pd.pivot_table(df, index=colname, margins=True, aggfunc="sum")
     ).reset_index()
     df = base_df.merge(df, how="left")
     df = df.fillna(0)
