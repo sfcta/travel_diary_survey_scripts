@@ -117,7 +117,6 @@ if __name__ == "__main__":
         person["psautime"] = -1.0
         person["psaudist"] = -1.0
         for i in range(len(person)):
-            print(person[["hhtaz", "pwtaz", "hhno", "pno"]].iloc[i])
             otaz = int(person["hhtaz"][i])
             dtaz = int(person["pwtaz"][i])
             if otaz > 0 and dtaz > 0:
