@@ -46,20 +46,20 @@ def load_person_reformat(person_reformat_filepath=person_reformat_filepath):
     )
 
 
-def load_trip_raw(trip_raw_filepath=trip_raw_filepath):
+def load_trip_raw(
+    trip_raw_filepath=trip_raw_filepath, tnc=False, transit_access_egress=False
+):
     """load raw trip CSV to get raw mode_type and TNC info"""
+    columns = ["hh_id", "person_num", "trip_num"]
+    if tnc:
+        columns += ["tnc_type", "mode_type"] + [
+            f"tnc_replace_{i}" for i in range(1, 10)
+        ]
+    if transit_access_egress:
+        columns += ["transit_access", "transit_egress"]
     return (
         pl.read_csv(trip_raw_filepath)
-        .select(
-            [
-                "hh_id",
-                "person_num",
-                "trip_num",
-                "tnc_type",
-                "mode_type",
-            ]
-            + [f"tnc_replace_{i}" for i in range(1, 10)]
-        )
+        .select(columns)
         .rename({"hh_id": "hhno", "person_num": "pno", "trip_num": "tsvid"})
         # TODO pivot tnc_replace_i into a single column
     )
@@ -68,18 +68,18 @@ def load_trip_raw(trip_raw_filepath=trip_raw_filepath):
 def load_trip_assign_day(trip_assign_day_filepath):
     return (
         pl.read_csv(trip_assign_day_filepath)
+        .filter(
+            (pl.col("trexpfac") > 0)  # has to do with weights
+            & (pl.col("mode") > 0)  # mode is not other (0)
+            & (pl.col("otaz") > 0)  # otaz must exist (i.e. not -1)
+            & (pl.col("dtaz") > 0)  # dtaz must exist (i.e. not -1)
+        )
         .with_columns(
             # NOTE deptm is NOT using standard Daysim definitions, see 02/a-reformat.py
             # NOTE depart_hour was available in the raw data;
             #      but we removed that column in 02/a-reformat.py
             depart_hour=(pl.col("deptm") // 100),
             count=pl.lit(1),  # NOTE unsure if needed, copied over from 2019 code
-        )
-        .filter(
-            (pl.col("trexpfac") > 0)  # has to do with weights
-            & (pl.col("mode") > 0)  # mode is not other (0)
-            & (pl.col("otaz") > 0)  # otaz must exist (i.e. not -1)
-            & (pl.col("dtaz") > 0)  # dtaz must exist (i.e. not -1)
         )
     )
 
