@@ -47,26 +47,39 @@ def load_person_reformat(person_reformat_filepath=person_reformat_filepath):
 
 
 def load_trip_raw(
-    trip_raw_filepath=trip_raw_filepath, tnc=False, transit_access_egress=False
+    trip_raw_filepath=trip_raw_filepath,
+    num_travelers=False,
+    tnc=False,
+    transit_access_egress=False,
 ):
     """load raw trip CSV to get raw mode_type and TNC info"""
     columns = ["hh_id", "person_num", "trip_num"]
+    if num_travelers:
+        columns += ["num_travelers"]
     if tnc:
         columns += ["tnc_type", "mode_type"] + [
             f"tnc_replace_{i}" for i in range(1, 10)
         ]
     if transit_access_egress:
         columns += ["transit_access", "transit_egress"]
-    return (
+    trip = (
         pl.read_csv(trip_raw_filepath)
         .select(columns)
         .rename({"hh_id": "hhno", "person_num": "pno", "trip_num": "tsvid"})
-        # TODO pivot tnc_replace_i into a single column
     )
+    if num_travelers:
+        trip = trip.with_columns(
+            num_travelers_cat=pl.when(pl.col("num_travelers") > 5)
+            .then(pl.lit(5))
+            .otherwise(pl.col("num_travelers"))
+        )
+    if tnc:
+        pass  # TODO pivot tnc_replace_i into a single column
+    return trip
 
 
-def load_trip_assign_day(trip_assign_day_filepath):
-    return (
+def load_trip_assign_day(trip_assign_day_filepath, depart_hour=False):
+    trip = (
         pl.read_csv(trip_assign_day_filepath)
         .filter(
             (pl.col("trexpfac") > 0)  # has to do with weights
@@ -75,13 +88,17 @@ def load_trip_assign_day(trip_assign_day_filepath):
             & (pl.col("dtaz") > 0)  # dtaz must exist (i.e. not -1)
         )
         .with_columns(
+            count=pl.lit(1)  # NOTE unsure if needed, copied over from 2019 code
+        )
+    )
+    if depart_hour:
+        trip = trip.with_columns(
             # NOTE deptm is NOT using standard Daysim definitions, see 02/a-reformat.py
             # NOTE depart_hour was available in the raw data;
             #      but we removed that column in 02/a-reformat.py
-            depart_hour=(pl.col("deptm") // 100),
-            count=pl.lit(1),  # NOTE unsure if needed, copied over from 2019 code
+            depart_hour=(pl.col("deptm") // 100)
         )
-    )
+    return trip
 
 
 def trip_join_hh_person(trip, hh, person):
@@ -158,6 +175,12 @@ df_to_excel_col_dict = {  # the output is sorted by the labels list
             "missing response",
             "prefer not to answer",
         ],
+    },
+    "num_travelers_cat": {  # from load_trip_raw()
+        "desc": "Number of people in travel party",
+        "col": "num_travelers_cat",
+        "vals": range(1, 6),
+        "labels": ["1", "2", "3", "4", "5+"],
     },
     "pagey": {  # from 2a person-reformat
         "desc": "Age",
