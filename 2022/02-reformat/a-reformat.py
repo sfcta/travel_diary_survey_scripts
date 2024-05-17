@@ -505,8 +505,6 @@ def reformat_trip(in_trip_filepath, logfile):
             )
             .when(pl.col("mode_type").is_in([5, 6]))  # taxi, tnc
             .then(pl.lit(9))
-            .when(pl.col("mode_type").is_in([5, 6]))  # taxi, tnc
-            .then(pl.lit(9))
             .when(pl.col("mode_type") == 10)  # school bus
             .then(pl.lit(8))
             .when(pl.col("mode_type") == 11)  # shuttle/vanpool
