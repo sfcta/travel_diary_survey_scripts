@@ -1,30 +1,23 @@
 from collections import OrderedDict
-from pathlib import Path
 
 import pandas as pd
 import polars as pl
 
-survey_processed_dir = Path(
-    "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240329"
+# put all filepaths in a separate config.py (at least for now) since the exact directory
+# tree is not set yet (and changed between 2019 and 2022)
+from config import (
+    county_filepath,
+    hh_raw_filepath,
+    out_dir,
+    person_raw_filepath,
+    person_reformat_filepath,
+    sup_dist_filepath,
+    trip_raw_filepath,
 )
-hh_raw_filepath = survey_processed_dir / "hh.csv"
-person_raw_filepath = survey_processed_dir / "person.csv"
-trip_raw_filepath = survey_processed_dir / "trip.csv"
-taz_spatial_join_dir = survey_processed_dir / "01-taz_spatial_join"
-reformat_dir = survey_processed_dir / "02-reformat"
-person_reformat_filepath = reformat_dir / "person-reformat.csv"
-tour_extract_wkday_dir = survey_processed_dir / "03-tour_extract" / "wt_wkday"
-tour_extract_allwk_dir = survey_processed_dir / "03-tour_extract" / "wt_7day"
-out_dir = survey_processed_dir / "04b-summary_notebooks"
+
 out_dir.mkdir(exist_ok=True)
-
-sup_dist = pd.read_csv(
-    r"Q:\GIS\Model\TAZ\SFCTA_TAZ\TAZ_SUPDIST\sftaz_wSupDist_Manual.csv"
-)
-sup_dist = sup_dist[["TAZ", "DIST_NUM"]]
-
-county_df = pd.read_csv(r"Q:\GIS\Model\TAZ\SFCTA_TAZ\TAZ2454_clean.csv")
-county_df = county_df[["TAZ", "COUNTY"]]
+sup_dist = pd.read_csv(sup_dist_filepath)[["TAZ", "DIST_NUM"]]
+county_df = pd.read_csv(county_filepath)
 
 
 raceeth_dict = OrderedDict(  # same order needed for keys/values in df_to_excel_col_dict
