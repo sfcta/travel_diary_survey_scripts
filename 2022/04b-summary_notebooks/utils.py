@@ -78,7 +78,7 @@ def load_hh_raw(hh_raw_filepath=hh_raw_filepath, income=False, home_county=False
 def load_person_demographics(
     person_raw_filepath=person_raw_filepath,
     person_reformat_filepath=person_reformat_filepath,
-    raceeth_dict=raceeth_dict,
+    # raceeth_dict=raceeth_dict,
 ):
     raceeth_cols = [f"ethnicity_{i}" for i in [1, 2, 3, 4, 997, 999]] + [
         f"race_{i}" for i in [1, 2, 3, 4, 5, 997, 999]
@@ -90,7 +90,7 @@ def load_person_demographics(
                 columns=["hh_id", "person_num"] + raceeth_cols,
             ),
             raceeth_cols,
-            raceeth_dict=raceeth_dict,
+            # raceeth_dict=raceeth_dict,
         )
         .rename(
             {
@@ -508,6 +508,7 @@ def hh_dist_map(df):
 
 
 def link_dt(df):
+    """link drive-transit trips"""
     dtrn_df = df.loc[df["dpurp"] == 10,]
     dtrn_df.loc[:, "tseg"] += 1
     dtrn_df = dtrn_df[["hhno", "pno", "day", "tour", "half", "tseg", "otaz", "opurp"]]
