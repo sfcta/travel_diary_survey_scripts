@@ -71,20 +71,10 @@ def load_hh_raw(hh_raw_filepath=hh_raw_filepath, income=False, home_county=False
 def load_person_demographics(
     person_raw_filepath=person_raw_filepath,
     person_reformat_filepath=person_reformat_filepath,
-    # raceeth_dict=raceeth_dict,
+    year: int = 2022,
 ):
-    raceeth_cols = [f"ethnicity_{i}" for i in [1, 2, 3, 4, 997, 999]] + [
-        f"race_{i}" for i in [1, 2, 3, 4, 5, 997, 999]
-    ]
     person_raw = (
-        parse_raceeth(
-            pl.read_csv(
-                person_raw_filepath,
-                columns=["hh_id", "person_num"] + raceeth_cols,
-            ),
-            raceeth_cols,
-            # raceeth_dict=raceeth_dict,
-        )
+        parse_raceeth(pl.scan_csv(person_raw_filepath), year=year)
         .rename(
             {
                 "hh_id": "hhno",
@@ -92,6 +82,7 @@ def load_person_demographics(
             }
         )
         .select("hhno", "pno", "raceeth")
+        .collect()
     )
     person_reformat = pl.read_csv(
         person_reformat_filepath, columns=["hhno", "pno", "pgend", "pagey"]
@@ -104,7 +95,6 @@ def load_person_assign_day(
     person_raw_filepath=person_raw_filepath,
     person_reformat_filepath=person_reformat_filepath,
     demographics=False,
-    raceeth_dict=raceeth_dict,
 ):
     person = (
         pl.read_csv(person_assign_day_filepath, columns=["hhno", "pno", "psexpfac"])
@@ -118,7 +108,6 @@ def load_person_assign_day(
             load_person_demographics(
                 person_raw_filepath=person_raw_filepath,
                 person_reformat_filepath=person_reformat_filepath,
-                raceeth_dict=raceeth_dict,
             ),
             on=["hhno", "pno"],
             how="left",
@@ -126,61 +115,140 @@ def load_person_assign_day(
     return person
 
 
-def parse_raceeth(person_raw, raceeth_cols):  # , raceeth_dict=raceeth_dict):
+def parse_raceeth(person_raw, year: int = 2022):
     """parse race/ethnicity into a single column"""
     # TODO figure out setting up raceeth as a pl.Enum column
     # raceeth_enum_dtype = pl.Enum(raceeth_dict.keys())
-    return (
-        person_raw.with_columns(
-            pl.col(raceeth_cols).replace({995: None}),  # missing
-        )
-        .with_columns(
-            race_multi=(
-                pl.sum_horizontal([f"race_{i}" for i in [1, 2, 3, 4, 5, 997]]) > 1
-            ),
-        )
-        .with_columns(pl.col(raceeth_cols).cast(bool))
-        .with_columns(
-            hispanic=(
-                pl.col("ethnicity_2")
-                | pl.col("ethnicity_3")
-                | pl.col("ethnicity_4")
-                | pl.col("ethnicity_997")
-            ),
-        )
-        .rename({"ethnicity_1": "not_hispanic"})
-        .with_columns(
-            raceeth=pl.when(pl.col("not_hispanic") & pl.col("hispanic"))
-            # sanity check: people claiming both to be hispanic and non-hispanic
-            .then(pl.lit(None))  # alternatively: could maybe just use the race
-            .when(pl.col("hispanic"))
-            .then(pl.lit("hispanic"))
-            # all cases below are non-hispanic
-            .when(pl.col("race_multi"))
-            .then(pl.lit("multi"))
-            # race_1: African American or Black
-            .when(pl.col("race_1"))
-            .then(pl.lit("black"))
-            # race_2: American Indian or Alaska Native
-            .when(pl.col("race_2"))
-            .then(pl.lit("aiak"))
-            # race_3: Asian
-            .when(pl.col("race_3"))
-            .then(pl.lit("asian"))
-            # race_4: Native Hawaiian or other Pacific Islander
-            .when(pl.col("race_4"))
-            .then(pl.lit("pacific_islander"))
-            # race_5: White
-            .when(pl.col("race_5"))
-            .then(pl.lit("white"))
-            # race_6: other race
-            .when(pl.col("race_997"))
-            .then(pl.lit("other"))
-            .otherwise(
-                pl.lit(None)  # includes race/ethnicity 999 (prefer not to answer)
+    if year == 2018:
+        raceeth_cols = [
+            f"ethnicity_{i}"
+            for i in [
+                "af_am",
+                "aiak",
+                "asian",
+                "hapi",
+                "hisp",
+                "mideast",
+                "multi",
+                "no_answer",
+                "other",
+                "white",
+            ]
+        ]
+        return (
+            person_raw.with_columns(
+                raceeth_cols=[
+                    f"ethnicity_{i}"
+                    for i in [
+                        "af_am",
+                        "aiak",
+                        "asian",
+                        "hapi",
+                        "hisp",
+                        "mideast",
+                        "multi",
+                        "no_answer",
+                        "other",
+                        "white",
+                    ]
+                ]
+            )
+            # no need to construct multi race/eth column; available from raw dataset
+            # .with_columns(
+            #     raceeth_multi= ,
+            # )
+            .with_columns(pl.col(raceeth_cols).cast(bool))
+            .with_columns(
+                # NOTE the 2022 parser treats multi-race as a sub-case of not-hispanic
+                raceeth=pl.when(pl.col("ethnicity_multi"))
+                .then(pl.lit("multi"))
+                .when(pl.col("ethnicity_hisp"))
+                .then(pl.lit("hispanic"))
+                # af_am: African American or Black
+                .when(pl.col("ethnicity_af_am"))
+                .then(pl.lit("black"))
+                # aiak: American Indian or Alaska Native
+                .when(pl.col("ethnicity_aiak"))
+                .then(pl.lit("aiak"))
+                # asian: Asian
+                .when(pl.col("ethnicity_asian"))
+                .then(pl.lit("asian"))
+                # hapi: Native Hawaiian or other Pacific Islander
+                .when(pl.col("ethnicity_hapi"))
+                .then(pl.lit("pacific_islander"))
+                # white: White
+                .when(pl.col("ethnicity_white"))
+                .then(pl.lit("white"))
+                # mideast: Middle Eastern  # not available in 2022
+                .when(pl.col("ethnicity_mideast"))
+                .then(pl.lit("mideast"))
+                # other: other race
+                .when(pl.col("ethnicity_other"))
+                .then(pl.lit("other"))
+                .otherwise(
+                    pl.lit(None)  # includes ethnicity_no_answer
+                )
             )
         )
-    )
+    elif year == 2022:
+        raceeth_cols = [f"ethnicity_{i}" for i in [1, 2, 3, 4, 997, 999]] + [
+            f"race_{i}" for i in [1, 2, 3, 4, 5, 997, 999]
+        ]
+        return (
+            person_raw.with_columns(
+                pl.col(raceeth_cols).replace({995: None}),  # missing
+            )
+            .with_columns(
+                race_multi=(
+                    pl.sum_horizontal([f"race_{i}" for i in [1, 2, 3, 4, 5, 997]]) > 1
+                ),
+            )
+            .with_columns(pl.col(raceeth_cols).cast(bool))
+            .with_columns(
+                hispanic=(
+                    pl.col("ethnicity_2")
+                    | pl.col("ethnicity_3")
+                    | pl.col("ethnicity_4")
+                    | pl.col("ethnicity_997")
+                ),
+            )
+            .rename({"ethnicity_1": "not_hispanic"})
+            .with_columns(
+                raceeth=pl.when(pl.col("not_hispanic") & pl.col("hispanic"))
+                # sanity check: people claiming both to be hispanic and non-hispanic
+                .then(pl.lit(None))  # alternatively: could maybe just use the race
+                .when(pl.col("hispanic"))
+                .then(pl.lit("hispanic"))
+                # all cases below are non-hispanic
+                # NOTE multi-race is only if non-hispanic; once someone declares oneself
+                #      as hispanic, under this parser they cannot be multi-racial
+                .when(pl.col("race_multi"))
+                .then(pl.lit("multi"))
+                # race_1: African American or Black
+                .when(pl.col("race_1"))
+                .then(pl.lit("black"))
+                # race_2: American Indian or Alaska Native
+                .when(pl.col("race_2"))
+                .then(pl.lit("aiak"))
+                # race_3: Asian
+                .when(pl.col("race_3"))
+                .then(pl.lit("asian"))
+                # race_4: Native Hawaiian or other Pacific Islander
+                .when(pl.col("race_4"))
+                .then(pl.lit("pacific_islander"))
+                # race_5: White
+                .when(pl.col("race_5"))
+                .then(pl.lit("white"))
+                # race_6: other race
+                .when(pl.col("race_997"))
+                .then(pl.lit("other"))
+                .otherwise(
+                    pl.lit(None)  # includes race/ethnicity 999 (prefer not to answer)
+                )
+            )
+        )
+    else:
+        raise NotImplementedError("not a recognized year (survey batch)")
 
 
 def parse_tnc_replacement(trip_raw, tnc_replacement_cols):
