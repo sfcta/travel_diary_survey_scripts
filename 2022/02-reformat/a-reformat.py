@@ -54,7 +54,7 @@ def load_day_completeness(in_day_filepath):
     )
 
 
-def reformat_person(in_person_filepath, day_with_completeness, logfile):
+def reformat_person(in_person_filepath, day_with_completeness, weighted: bool, logfile):
     """Person file processing"""
     print(f"Person file processing started: {datetime.datetime.now()}")
     logfile.write(f"\nPerson file processing started: {datetime.datetime.now()}\n")
@@ -149,10 +149,7 @@ def reformat_person(in_person_filepath, day_with_completeness, logfile):
         "num_days_complete",
     ]
     if weighted:
-        person_out_cols += [
-            "wt_alladult_wkday",
-            "wt_alladult_7day",
-        ]
+        person_out_cols.append("person_weight")
     person = (
         pl.read_csv(
             in_person_filepath,
@@ -293,7 +290,7 @@ def reformat_person(in_person_filepath, day_with_completeness, logfile):
     return person
 
 
-def reformat_hh(in_hh_filepath, person, logfile):
+def reformat_hh(in_hh_filepath, person, weighted: bool, logfile):
     """Household file processing"""
     print(f"Household file processing started: {datetime.datetime.now()}")
     logfile.write(f"\nHousehold file processing started: {datetime.datetime.now()}\n")
@@ -333,7 +330,7 @@ def reformat_hh(in_hh_filepath, person, logfile):
         "hycord",
     ]
     if weighted:
-        hh_out_cols += ["wt_alladult_wkday", "wt_alladult_7day"]
+        hh_out_cols.append("hh_weight")
     person = (
         person.select("hhno", "pownrent", "prestype")
         .group_by("hhno")
@@ -344,15 +341,7 @@ def reformat_hh(in_hh_filepath, person, logfile):
         .rename({"pownrent": "hownrent", "prestype": "hrestype"})
     )
     hh = (
-        pl.read_csv(
-            in_hh_filepath,
-            dtypes={
-                "hhparcel": int,
-                "hhtaz": int,
-                "hhincome": int,
-                "hrestype": int,
-            },
-        )
+        pl.read_csv(in_hh_filepath)
         .rename(
             {
                 "hh_id": "hhno",
@@ -389,7 +378,7 @@ def reformat_hh(in_hh_filepath, person, logfile):
     return hh
 
 
-def reformat_trip(in_trip_filepath, logfile):
+def reformat_trip(in_trip_filepath, weighted: bool, logfile):
     """Trip processing"""
     print(f"Trip file processing started: {datetime.datetime.now()}")
     logfile.write(f"\nTrip file processing started: {datetime.datetime.now()}\n")
@@ -434,7 +423,7 @@ def reformat_trip(in_trip_filepath, logfile):
         "mode_type",
     ]
     if weighted:
-        trip_out_cols += ["daywt_alladult_wkday", "daywt_alladult_7day"]
+        trip_out_cols.append("trip_weight")
     trip = (
         pl.read_csv(
             in_trip_filepath,
@@ -617,7 +606,6 @@ def reformat_trip(in_trip_filepath, logfile):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("config_filepath")
-    weighted = False  # TODO add as argparse option; only received unweighted so far
     args = parser.parse_args()
     with open(args.config_filepath, "rb") as f:
         config = tomllib.load(f)
@@ -628,26 +616,30 @@ if __name__ == "__main__":
         "Reformat survey program started: " + str(datetime.datetime.now()) + "\n"
     )
 
-    in_dir = Path(config["input"]["dir"])
-    in_hh_filepath = in_dir / config["input"]["hh_filename"]
-    in_person_filepath = in_dir / config["input"]["person_filename"]
-    in_trip_filepath = in_dir / config["input"]["trip_filename"]
-    in_day_filepath = Path(config["raw"]["dir"]) / "day.csv"
-
-    out_dir = Path(config["output"]["dir"])
-    out_dir.mkdir(exist_ok=True)
-    out_hh_filepath = out_dir / config["output"]["hh_filename"]
-    out_person_filepath = out_dir / config["output"]["person_filename"]
-    out_trip_filepath = out_dir / config["output"]["trip_filename"]
+    taz_spatial_join_dir = Path(config["01-taz_spatial_join"]["dir"])
+    reformat_dir = Path(config["02a-reformat"]["dir"])
+    reformat_dir.mkdir(exist_ok=True)
 
     person = reformat_person(
-        in_person_filepath, load_day_completeness(in_day_filepath), logfile
+        taz_spatial_join_dir / config["01-taz_spatial_join"]["person_filename"],
+        load_day_completeness(
+            Path(config["raw"]["dir"]) / config["raw"]["day_filename"]
+        ),
+        config["weighted"],
+        logfile,
     )
-    person.write_csv(out_person_filepath)
-    hh = reformat_hh(in_hh_filepath, person, logfile)
-    hh.write_csv(out_hh_filepath)
-    trip = reformat_trip(in_trip_filepath, logfile)
-    trip.write_csv(out_trip_filepath)
+    person.write_csv(reformat_dir / config["02a-reformat"]["person_filename"])
+    reformat_hh(
+        taz_spatial_join_dir / config["01-taz_spatial_join"]["hh_filename"],
+        person,
+        config["weighted"],
+        logfile,
+    ).write_csv(reformat_dir / config["02a-reformat"]["hh_filename"])
+    reformat_trip(
+        taz_spatial_join_dir / config["01-taz_spatial_join"]["trip_filename"],
+        config["weighted"],
+        logfile,
+    ).write_csv(reformat_dir / config["02a-reformat"]["trip_filename"])
     print(f"2022/02-reformat/a-reformat.py done: {datetime.datetime.now()}")
-    logfile.write("\n2022/02-reformat/a-reformat.py done: {datetime.datetime.now()}\n")
+    logfile.write(f"\n2022/02-reformat/a-reformat.py done: {datetime.datetime.now()}\n")
     logfile.close()
