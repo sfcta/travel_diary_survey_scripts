@@ -1,6 +1,16 @@
 weighted = true
 
+day_filename_stem = "day"
+hh_filename_stem = "hh"
+location_filename_stem = "location"
+person_filename_stem = "person"
+trip_filename_stem = "trip"
+vehicle_filename_stem = "vehicle"
+
 raw_dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Deliverable_20240809"
+# TODO have a utils.py that generates the dirs for each step from
+# Path(processed_dir) / subdir
+# processed_dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809"
 
 [00-preprocess]
 dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/00-preprocess"
