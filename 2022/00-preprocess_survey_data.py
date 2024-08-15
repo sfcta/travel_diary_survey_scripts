@@ -1,31 +1,50 @@
-import os
+import argparse
+import tomllib
+from pathlib import Path
+from shutil import copy2
 
 import pandas as pd
 
-if __name__ == "__main__":
-    indir = r"Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Deliverable_20240329\BATS Unweighted Dataset"
-    outdir = r"Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2022\Processed_20240329"
 
-    HOUSEHOLD = "hh.csv"
-    PERSON = "person.csv"
-    DAY = "day.csv"
-    TRIP = "trip.csv"
-    LOCATION = "location.csv"
-    VEHICLE = "vehicle.csv"
+def preprocess(config):
+    raw_dir = Path(config["raw_dir"])
+    preprocess_dir = Path(config["00-preprocess"]["dir"])
+    preprocess_dir.mkdir(exist_ok=True)
 
-    household = pd.read_csv(os.path.join(indir, HOUSEHOLD))
-    person = pd.read_csv(os.path.join(indir, PERSON))
-    day = pd.read_csv(os.path.join(indir, DAY))
-    trip = pd.read_csv(os.path.join(indir, TRIP))
-    location = pd.read_csv(os.path.join(indir, LOCATION))
-    vehicle = pd.read_csv(os.path.join(indir, VEHICLE))
+    # TODO move the construction of filenames into a utils.py
+    hh_filename = f"{config["hh_filename_stem"]}.csv"
+    person_filename = f"{config["person_filename_stem"]}.csv"
+    day_filename = f"{config["day_filename_stem"]}.csv"
+    trip_filename = f"{config["trip_filename_stem"]}.csv"
+    location_filename = f"{config["location_filename_stem"]}.csv"
+    vehicle_filename = f"{config["vehicle_filename_stem"]}.csv"
 
-    print("households: {}".format(len(household)))
-    print("persons: {}".format(len(person)))
-    print("days: {}".format(len(day)))
-    print("trips: {}".format(len(trip)))
-    print("locations: {}".format(len(location)))
-    print("vehicles: {}".format(len(vehicle)))
+    _ = preprocess_person(raw_dir, preprocess_dir, person_filename)
+    trip = preprocess_trip(raw_dir, preprocess_dir, trip_filename)
+    _ = preprocess_location(raw_dir, preprocess_dir, location_filename, trip)
+
+    # copying the unchanged files too for ease of use / easy backward compatibility;
+    # not sure if we should copy files that are not changed
+    copy2(raw_dir / hh_filename, preprocess_dir / hh_filename)
+    copy2(raw_dir / day_filename, preprocess_dir / day_filename)
+    copy2(raw_dir / vehicle_filename, preprocess_dir / vehicle_filename)
+    return
+
+
+def preprocess_person(raw_dir, preprocess_dir, person_filename):
+    person = pd.read_csv(raw_dir / person_filename)
+    print("persons:", len(person))
+    person["person_id_sfcta"] = person.apply(
+        lambda x: "{:d}{:02d}".format(x["hh_id"], x["person_num"]), axis=1
+    ).astype("int64")
+    print("persons:", len(person))
+    person.to_csv(preprocess_dir / person_filename, index=False)
+    return person
+
+
+def preprocess_trip(raw_dir, preprocess_dir, trip_filename):
+    trip = pd.read_csv(raw_dir / trip_filename)
+    print("trips:", len(trip))
 
     if "depart_seconds" in trip.columns:
         trip.rename(columns={"depart_seconds": "depart_second"}, inplace=True)
@@ -42,32 +61,36 @@ if __name__ == "__main__":
         axis=1,
     )
 
-    person["person_id_sfcta"] = person.apply(
-        lambda x: "{:d}{:02d}".format(x["hh_id"], x["person_num"]), axis=1
-    ).astype("int64")
     trip["person_id_sfcta"] = trip.apply(
         lambda x: "{:d}{:02d}".format(x["hh_id"], x["person_num"]), axis=1
     ).astype("int64")
     trip["trip_id_sfcta"] = trip.apply(
         lambda x: "{:d}{:03d}".format(x["person_id_sfcta"], x["trip_num"]), axis=1
     ).astype("int64")
+
+    print("trips:", len(trip))
+    trip.to_csv(preprocess_dir / trip_filename, index=False)
+    return trip
+
+
+def preprocess_location(raw_dir, preprocess_dir, location_filename, trip):
+    location = pd.read_csv(raw_dir / location_filename)
+    print("locations:", len(location))
     location = pd.merge(
         trip[["person_id", "person_id_sfcta", "trip_id", "trip_id_sfcta"]],
         location,
         on="trip_id",
         how="right",
     )
+    print("locations:", len(location))
+    location.to_csv(preprocess_dir / location_filename, index=False)
+    return location
 
-    print("households: {}".format(len(household)))
-    print("persons: {}".format(len(person)))
-    print("days: {}".format(len(day)))
-    print("trips: {}".format(len(trip)))
-    print("locations: {}".format(len(location)))
-    print("vehicles: {}".format(len(vehicle)))
 
-    household.to_csv(os.path.join(outdir, HOUSEHOLD), index=False)
-    person.to_csv(os.path.join(outdir, PERSON), index=False)
-    day.to_csv(os.path.join(outdir, DAY), index=False)
-    trip.to_csv(os.path.join(outdir, TRIP), index=False)
-    location.to_csv(os.path.join(outdir, LOCATION), index=False)
-    vehicle.to_csv(os.path.join(outdir, VEHICLE), index=False)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config_filepath")
+    args = parser.parse_args()
+    with open(args.config_filepath, "rb") as f:
+        config = tomllib.load(f)
+    preprocess(config)
