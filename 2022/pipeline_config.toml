@@ -22,8 +22,4 @@ dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/01-taz_
 maz_filepath = "Q:/GIS/Model/MAZ/MAZ40051.shp"
 
 [02a-reformat]
-dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/02-reformat"
-hh_filename = "hh-reformat.csv"
-person_filename = "person-reformat.csv"
-trip_filename = "trip-reformat.csv"
-
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/02a-reformat"

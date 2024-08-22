@@ -11,6 +11,31 @@ import polars as pl
 COUNTY_FIPS = 6 * 1000 + np.array([1, 13, 41, 55, 75, 81, 85, 95, 97])  # 6 = CA
 
 
+def reformat(config):
+    taz_spatial_join_dir = Path(config["01-taz_spatial_join"]["dir"])
+    reformat_dir = Path(config["02a-reformat"]["dir"])
+    reformat_dir.mkdir(exist_ok=True)
+
+    person = reformat_person(
+        taz_spatial_join_dir / config["person_filename"],
+        load_day_completeness(
+            Path(config["raw"]["dir"]) / config["day_filename"]
+        ),
+        config["weighted"],
+    )
+    person.write_csv(reformat_dir / config["person_filename"])
+    reformat_hh(
+        taz_spatial_join_dir / config["hh_filename"],
+        person,
+        config["weighted"],
+    ).write_csv(reformat_dir / config["hh_filename"])
+    reformat_trip(
+        taz_spatial_join_dir / config["trip_filename"],
+        config["weighted"],
+    ).write_csv(reformat_dir / config["trip_filename"])
+    return
+
+
 def load_day_completeness(in_day_filepath):
     weekday_nums = ["1", "2", "3", "4", "5"]
     weekend_nums = ["6", "7"]
@@ -54,11 +79,7 @@ def load_day_completeness(in_day_filepath):
     )
 
 
-def reformat_person(in_person_filepath, day_with_completeness, weighted: bool, logfile):
-    """Person file processing"""
-    print(f"Person file processing started: {datetime.datetime.now()}")
-    logfile.write(f"\nPerson file processing started: {datetime.datetime.now()}\n")
-
+def reformat_person(in_person_filepath, day_with_completeness, weighted: bool):
     age_dict = {
         1: 3,
         2: 10,
@@ -185,7 +206,7 @@ def reformat_person(in_person_filepath, day_with_completeness, weighted: bool, l
         .with_columns(
             pl.col(["pwxcord", "pwycord", "psxcord", "psycord"]).fill_null(-1),
             pagey=pl.col("age").replace(age_dict),
-            pgend=pl.col("gender").replace(gender_dict),
+            pgend=pl.col("gender_imputed").replace(gender_dict),
             # NOTE pstyp/student: bad logic for the 0 as default! (copied from 2019)
             # since the student var only applies to people above 16
             pstyp=pl.col("student").replace(student_dict).fill_null(0),
@@ -285,16 +306,10 @@ def reformat_person(in_person_filepath, day_with_completeness, weighted: bool, l
         .select(person_out_cols)
         .sort(by=["hhno", "pno"])
     )
-    print(f"Person file processing finished: {datetime.datetime.now()}")
-    logfile.write(f"Person file processing finished: {datetime.datetime.now()}\n")
     return person
 
 
-def reformat_hh(in_hh_filepath, person, weighted: bool, logfile):
-    """Household file processing"""
-    print(f"Household file processing started: {datetime.datetime.now()}")
-    logfile.write(f"\nHousehold file processing started: {datetime.datetime.now()}\n")
-
+def reformat_hh(in_hh_filepath, person, weighted: bool):
     # TODO or should we just use imputed income?
     income_detailed_dict = {
         999: -1,
@@ -370,20 +385,10 @@ def reformat_hh(in_hh_filepath, person, weighted: bool, logfile):
         .select(hh_out_cols)
         .sort(by="hhno")
     )
-
-    print(f"Household file processing finished: {datetime.datetime.now()}")
-    logfile.write(
-        f"Household file processing finished: {str(datetime.datetime.now())}\n"
-    )
-
     return hh
 
 
-def reformat_trip(in_trip_filepath, weighted: bool, logfile):
-    """Trip processing"""
-    print(f"Trip file processing started: {datetime.datetime.now()}")
-    logfile.write(f"\nTrip file processing started: {datetime.datetime.now()}\n")
-
+def reformat_trip(in_trip_filepath, weighted: bool):
     purpose_dict = {
         -1: -1,  # not imputable -> missing
         995: -1,  # missing -> missing
@@ -598,9 +603,6 @@ def reformat_trip(in_trip_filepath, weighted: bool, logfile):
         .select(trip_out_cols)
         .sort(by=["hhno", "pno", "tripno"])
     )
-
-    print(f"Trip file processing finished: {datetime.datetime.now()}")
-    logfile.write(f"Trip file processing finished: {datetime.datetime.now()}\n")
     return trip
 
 
@@ -610,37 +612,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     with open(args.config_filepath, "rb") as f:
         config = tomllib.load(f)
-
-    logfilename = "a-reformat.log"
-    logfile = open(logfilename, "w")
-    logfile.write(
-        "Reformat survey program started: " + str(datetime.datetime.now()) + "\n"
-    )
-
-    taz_spatial_join_dir = Path(config["01-taz_spatial_join"]["dir"])
-    reformat_dir = Path(config["02a-reformat"]["dir"])
-    reformat_dir.mkdir(exist_ok=True)
-
-    person = reformat_person(
-        taz_spatial_join_dir / config["01-taz_spatial_join"]["person_filename"],
-        load_day_completeness(
-            Path(config["raw"]["dir"]) / config["raw"]["day_filename"]
-        ),
-        config["weighted"],
-        logfile,
-    )
-    person.write_csv(reformat_dir / config["02a-reformat"]["person_filename"])
-    reformat_hh(
-        taz_spatial_join_dir / config["01-taz_spatial_join"]["hh_filename"],
-        person,
-        config["weighted"],
-        logfile,
-    ).write_csv(reformat_dir / config["02a-reformat"]["hh_filename"])
-    reformat_trip(
-        taz_spatial_join_dir / config["01-taz_spatial_join"]["trip_filename"],
-        config["weighted"],
-        logfile,
-    ).write_csv(reformat_dir / config["02a-reformat"]["trip_filename"])
-    print(f"2022/02-reformat/a-reformat.py done: {datetime.datetime.now()}")
-    logfile.write(f"\n2022/02-reformat/a-reformat.py done: {datetime.datetime.now()}\n")
-    logfile.close()
+    reformat(config)
