@@ -1,3 +1,10 @@
+"""
+minor changes to CSV files:
+person: add person_id_sfcta column by concatenating hh_id and person_num
+trip: add columns: depart_time, arrive_time, person_id_sfcta, trip_id_sfcta
+location: add person_id, person_id_sfcta, trip_id, trip_id_sfcta from trip table
+"""
+
 import argparse
 import tomllib
 from pathlib import Path
@@ -34,6 +41,8 @@ def preprocess(config):
 def preprocess_person(raw_dir, preprocess_dir, person_filename):
     person = pd.read_csv(raw_dir / person_filename)
     print("persons:", len(person))
+    # TODO TO VERIFY: as of 2022 data, seems like no longer needed to create
+    # person_id_sfcta because person_id is exactly what this new column is
     person["person_id_sfcta"] = person.apply(
         lambda x: "{:d}{:02d}".format(x["hh_id"], x["person_num"]), axis=1
     ).astype("int64")
