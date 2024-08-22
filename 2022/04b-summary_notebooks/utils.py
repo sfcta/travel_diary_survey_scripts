@@ -58,7 +58,7 @@ def load_hh_raw(hh_raw_filepath=hh_raw_filepath, income=False, home_county=False
     """
     column_rename_dict = {"hh_id": "hhno"}
     if income:
-        column_rename_dict |= {"income_broad": "hh_income_broad_cat"}
+        column_rename_dict |= {"income_imputed": "hh_income_cat"}
     columns = list(column_rename_dict.keys())
     if home_county:
         columns = columns + ["home_county"]
@@ -430,9 +430,9 @@ df_to_excel_col_dict = {  # the output is sorted by the labels list
         "vals": raceeth_dict.keys(),
         "labels": raceeth_dict.values(),
     },
-    "hh_income_broad_cat": {  # from load_hh_raw()
+    "hh_income_cat": {  # from load_hh_raw()
         "desc": "HHIncome",
-        "col": "hh_income_broad_cat",  # recoded broad categories
+        "col": "hh_income_cat",  # recoded broad categories
         "vals": list(range(1, 7)) + [995, 999],
         "labels": [
             "000-25k",

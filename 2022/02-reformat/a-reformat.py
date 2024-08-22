@@ -295,6 +295,7 @@ def reformat_hh(in_hh_filepath, person, weighted: bool, logfile):
     print(f"Household file processing started: {datetime.datetime.now()}")
     logfile.write(f"\nHousehold file processing started: {datetime.datetime.now()}\n")
 
+    # TODO or should we just use imputed income?
     income_detailed_dict = {
         999: -1,
         1: 7500,
