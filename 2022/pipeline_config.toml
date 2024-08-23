@@ -29,3 +29,11 @@ dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/02b-lin
 accegr_filename = "accegr_week.csv"  # access/egress
 # CH: originally named "temp_tripx_linked_detail_week"; not sure what's in here nor what it's used for
 trip_linked_detail_week_filename = "trip-detail.csv"
+
+[03a-tour_extract_week]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/03a-tour_extract_week"
+personday_filename = "personday.csv"
+tour_filename = "tour.csv"
+hh_weight_col = "hh_weight"
+person_weight_col = "person_weight"
+trip_weight_col = "trip_weight"

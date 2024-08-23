@@ -1,5 +1,6 @@
+import argparse
 import datetime
-import sys
+import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -16,109 +17,72 @@ DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "su
 
 MAXTOUR = 75
 
-weighted = False  # TODO add as argparse option; only received unweighted so far
+# according to the weighting memo, the weights are only good for weekdays only,
+# but seems like this script is recalculating the trip weights from scratch anyways
 weekdays_only = True  # 4 or 7 days
-
 if weekdays_only:
     WT_COMPLETE_COL = "num_days_complete_weekday"
 else:
     WT_COMPLETE_COL = "num_days_complete"
 
-if weighted:
-    if weekdays_only:  # 4 days
-        HH_WT_COL = "wt_alladult_wkday"
-        PER_WT_COL = "wt_alladult_wkday"
-        TRIP_WT_COL = "daywt_alladult_wkday"
-    else:  # 7 days
-        HH_WT_COL = "wt_alladult_7day"
-        PER_WT_COL = "wt_alladult_7day"
-        TRIP_WT_COL = "daywt_alladult_7day"
 
-
-# compares floating point numbers
 def isclose(a, b, rel_tol=1e-09, abs_tol=0.000001):
+    """compares floating point numbers"""
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
-# converts minutes past midnight to clock time on 24 hour clock
 def clock(mins):
+    """converts minutes past midnight to clock time on 24 hour clock"""
     while mins >= 1440:
         mins -= 1440
     mins2 = 100 * (int(mins / 60)) + (mins % 60)
     return str(mins2)
 
 
-if __name__ == "__main__":
-    # TODO move to using argparse + toml
-    if len(sys.argv) < 2:
-        print(
-            "Please provide a control file which contains all the required input parameters as an argument!"
-        )
-    else:
-        print(
-            "Tour extract survey week program started: {}".format(
-                datetime.datetime.now()
-            )
-        )
-        # Initiate log file
-        logfilename = "a-tour_extract_week.log"
-        logfile = open(logfilename, "w")
-        logfile.write(
-            f"Tour extract survey program started: {datetime.datetime.now()}\n"
-        )
+def tour_extract_week(config):
+    # Initiate log file
+    logfilename = "03a-tour_extract_week.log"
+    logfile = open(logfilename, "w")
+    logfile.write(f"Tour extract survey program started: {datetime.datetime.now()}\n")
 
-        inputctlfile = sys.argv[1]
-        ctlfile = open(inputctlfile)
-        for ctlfileline in ctlfile:
-            logfile.write(ctlfileline)
-            if len(str.split(ctlfileline)) > 1:
-                param = (str.split(ctlfileline)[0]).upper()
-                value = str.split(ctlfileline)[1]
-                if param == "INDIR":
-                    in_dir = Path(value)
-                elif param == "INHHFILE":
-                    inhhfilename = value
-                elif param == "INPERFILE":
-                    inperfilename = value
-                elif param == "INTRIPFILE":
-                    intripfilename = value
+    reformat_dir = Path(config["02a-reformat"]["dir"])
+    # HOTFIX pandas now support nullable int columns, but numpy doesn't, so we're
+    # filling the null taz values (i.e. outside the Bay Area) with -1 for now.
+    # TODO remove the fillna's once the logic below is replaced to not construct
+    # each column one by one with numpy
+    hh = pd.read_csv(reformat_dir / config["hh_filename"]).fillna({"hhtaz": -1})
+    persons = pd.read_csv(reformat_dir / config["person_filename"]).fillna(
+        {"pwtaz": -1, "pstaz": -1}
+    )
+    trip = pd.read_csv(
+        Path(config["02b-link_trips_week"]["dir"]) / config["trip_filename"]
+    ).fillna({"otaz": -1, "dtaz": -1})
 
-                elif param == "OUTDIR":
-                    out_dir = Path(value)
-                elif param == "OUTHHFILE":
-                    outhhfilename = value
-                elif param == "OUTHDAYFILE":
-                    outhdayfilename = value
-                elif param == "OUTPERFILE":
-                    outperfilename = value
-                elif param == "OUTPDAYFILE":
-                    outpdayfilename = value
-                elif param == "OUTTOURFILE":
-                    outtourfilename = value
-                elif param == "OUTTRIPFILE":
-                    outtripfilename = value
+    tour_extract_week_dir = Path(config["03a-tour_extract_week"]["dir"])
+    tour_extract_week_dir.mkdir(exist_ok=True)
+    outhhfilename = tour_extract_week_dir / config["hh_filename"]
+    # day: constructed from scratch, NOT from the day table received from vendor
+    outhdayfilename = tour_extract_week_dir / config["day_filename"]
+    outperfilename = tour_extract_week_dir / config["person_filename"]
+    outpdayfilename = (
+        tour_extract_week_dir / config["03a-tour_extract_week"]["personday_filename"]
+    )
+    outtourfilename = (
+        tour_extract_week_dir / config["03a-tour_extract_week"]["tour_filename"]
+    )
+    outtripfilename = tour_extract_week_dir / config["trip_filename"]
 
-        inhhfilename = in_dir / inhhfilename
-        inperfilename = in_dir / inperfilename
-        intripfilename = in_dir / intripfilename
+    weighted = config["weighted"]
 
-        out_dir.mkdir(exist_ok=True)
-        outhhfilename = out_dir / outhhfilename
-        outhdayfilename = out_dir / outhdayfilename
-        outperfilename = out_dir / outperfilename
-        outpdayfilename = out_dir / outpdayfilename
-        outtourfilename = out_dir / outtourfilename
-        outtripfilename = out_dir / outtripfilename
-
-        hh = pd.read_csv(inhhfilename)
-        persons = pd.read_csv(inperfilename)
-        trip = pd.read_csv(intripfilename, sep=" ")
-        if weighted:
-            hh["hhexpfac"] = hh[HH_WT_COL]
-            persons["psexpfac"] = persons[PER_WT_COL]
-            # NOTE TODO trexpfac: doesn't seem to be actually used
-            # seems like the `wt` var is just (over)written to this column
-            trip["trexpfac"] = trip[TRIP_WT_COL]
+    if weighted:
+        hh["hhexpfac"] = hh[config["03a-tour_extract_week"]["hh_weight_col"]]
+        persons["psexpfac"] = persons[
+            config["03a-tour_extract_week"]["person_weight_col"]
+        ]
+        # NOTE TODO trexpfac: doesn't seem to be actually used;
+        # seems like the `wt` var is just (over)written to this column.
+        # But why calculate it ourselves if the vendor already does it for us?
+        trip["trexpfac"] = trip[config["03a-tour_extract_week"]["trip_weight_col"]]
 
         # remove some bad records
         r1 = trip.shape[0]
@@ -1408,3 +1372,12 @@ if __name__ == "__main__":
         )
         logfile.close()
         print(f"Tour extract survey week program finished: {datetime.datetime.now()}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config_filepath")
+    args = parser.parse_args()
+    with open(args.config_filepath, "rb") as f:
+        config = tomllib.load(f)
+    tour_extract_week(config)
