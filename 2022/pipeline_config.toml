@@ -23,3 +23,9 @@ maz_filepath = "Q:/GIS/Model/MAZ/MAZ40051.shp"
 
 [02a-reformat]
 dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/02a-reformat"
+
+[02b-link_trips_week]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20240809/02b-link_trips_week"
+accegr_filename = "accegr_week.csv"  # access/egress
+# CH: originally named "temp_tripx_linked_detail_week"; not sure what's in here nor what it's used for
+trip_linked_detail_week_filename = "trip-detail.csv"
