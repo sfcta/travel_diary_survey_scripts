@@ -1,7 +1,6 @@
 """Map survey results CSVs to Daysim format"""
 
 import argparse
-import datetime
 import tomllib
 from pathlib import Path
 
@@ -18,9 +17,7 @@ def reformat(config):
 
     person = reformat_person(
         taz_spatial_join_dir / config["person_filename"],
-        load_day_completeness(
-            Path(config["raw"]["dir"]) / config["day_filename"]
-        ),
+        load_day_completeness(Path(config["raw"]["dir"]) / config["day_filename"]),
         config["weighted"],
     )
     person.write_csv(reformat_dir / config["person_filename"])
@@ -94,6 +91,8 @@ def reformat_person(in_person_filepath, day_with_completeness, weighted: bool):
         11: 90,  # 85+
     }
     gender_dict = {
+        # currently, imputation codes non-binary (gender) into male/female
+        # (gender_imputed), so let's keep using (non-imputed) gender for now
         1: 2,  # female
         2: 1,  # male
         4: 3,  # non-binary
@@ -206,7 +205,9 @@ def reformat_person(in_person_filepath, day_with_completeness, weighted: bool):
         .with_columns(
             pl.col(["pwxcord", "pwycord", "psxcord", "psycord"]).fill_null(-1),
             pagey=pl.col("age").replace(age_dict),
-            pgend=pl.col("gender_imputed").replace(gender_dict),
+            # currently, imputation codes non-binary (gender) into male/female
+            # (gender_imputed), so let's keep using (non-imputed) gender for now
+            pgend=pl.col("gender").replace(gender_dict),
             # NOTE pstyp/student: bad logic for the 0 as default! (copied from 2019)
             # since the student var only applies to people above 16
             pstyp=pl.col("student").replace(student_dict).fill_null(0),
