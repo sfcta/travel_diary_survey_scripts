@@ -23,11 +23,14 @@ county_df = pd.read_csv(county_filepath)
 raceeth_dict = OrderedDict(  # same order needed for keys/values in df_to_excel_col_dict
     [
         ("hispanic", "Hispaic"),
-        ("multi", "multi-racial"),
-        ("black", "African American or Black"),
-        ("aiak", "American Indian or Alaska Native"),
-        ("asian", "Asian"),
-        ("pacific_islander", "Native Hawaiian or other Pacific Islander"),
+        # ("multi", "multi-racial"),  # not available for imputed
+        # ("black", "African American or Black"),  # for non-imputed
+        ("afam", "African American or Black"),  # for imputed
+        # ("aiak", "American Indian or Alaska Native"),  # not available for imputed
+        # not available for imputed, imputed data merges into asian_pacific
+        # ("asian", "Asian"),
+        # ("pacific_islander", "Native Hawaiian or other Pacific Islander"),
+        ("asian_pacific", "Asian Pacific"),  # for imputed data
         ("white", "White"),
         ("other", "other race"),
     ]
@@ -73,15 +76,24 @@ def load_person_demographics(
     person_reformat_filepath=person_reformat_filepath,
     year: int = 2022,
 ):
+    """
+    load the following columns from person.csv:
+    - from 00-preprocess/person.csv: raceeth; and for 2018 only: hh_income
+    - from 02-reformat/person.csv: gender, age
+    """
+    person_raw_cols = ["hhno", "pno", "raceeth"]
+    person_raw = parse_raceeth(pl.scan_csv(person_raw_filepath), year=year)
+    if year == 2018:
+        person_raw_cols += ["hh_income_cat"]
+        person_raw = parse_income_2018(person_raw)
     person_raw = (
-        parse_raceeth(pl.scan_csv(person_raw_filepath), year=year)
-        .rename(
+        person_raw.rename(
             {
                 "hh_id": "hhno",
                 "person_num": "pno",
             }
         )
-        .select("hhno", "pno", "raceeth")
+        .select(person_raw_cols)
         .collect()
     )
     person_reformat = pl.read_csv(
@@ -113,6 +125,22 @@ def load_person_assign_day(
             how="left",
         )
     return person
+
+
+def parse_income_2018(person_raw):
+    income_dict_2018 = {
+        1: "000-25k",
+        2: "025-50k",
+        3: "050-75k",
+        4: "075-100k",
+        5: "100-150k",
+        6: "150-200k",
+        7: "200-250k",
+        8: "250k+",
+    }
+    return person_raw.with_columns(
+        hh_income_cat=pl.col("income_imputed").replace(income_dict_2018)
+    )
 
 
 def parse_raceeth(person_raw, year: int = 2022):
@@ -191,62 +219,71 @@ def parse_raceeth(person_raw, year: int = 2022):
             )
         )
     elif year == 2022:
-        raceeth_cols = [f"ethnicity_{i}" for i in [1, 2, 3, 4, 997, 999]] + [
-            f"race_{i}" for i in [1, 2, 3, 4, 5, 997, 999]
-        ]
-        return (
-            person_raw.with_columns(
-                pl.col(raceeth_cols).replace({995: None}),  # missing
-            )
-            .with_columns(
-                race_multi=(
-                    pl.sum_horizontal([f"race_{i}" for i in [1, 2, 3, 4, 5, 997]]) > 1
-                ),
-            )
-            .with_columns(pl.col(raceeth_cols).cast(bool))
-            .with_columns(
-                hispanic=(
-                    pl.col("ethnicity_2")
-                    | pl.col("ethnicity_3")
-                    | pl.col("ethnicity_4")
-                    | pl.col("ethnicity_997")
-                ),
-            )
-            .rename({"ethnicity_1": "not_hispanic"})
-            .with_columns(
-                raceeth=pl.when(pl.col("not_hispanic") & pl.col("hispanic"))
-                # sanity check: people claiming both to be hispanic and non-hispanic
-                .then(pl.lit(None))  # alternatively: could maybe just use the race
-                .when(pl.col("hispanic"))
-                .then(pl.lit("hispanic"))
-                # all cases below are non-hispanic
-                # NOTE multi-race is only if non-hispanic; once someone declares oneself
-                #      as hispanic, under this parser they cannot be multi-racial
-                .when(pl.col("race_multi"))
-                .then(pl.lit("multi"))
-                # race_1: African American or Black
-                .when(pl.col("race_1"))
-                .then(pl.lit("black"))
-                # race_2: American Indian or Alaska Native
-                .when(pl.col("race_2"))
-                .then(pl.lit("aiak"))
-                # race_3: Asian
-                .when(pl.col("race_3"))
-                .then(pl.lit("asian"))
-                # race_4: Native Hawaiian or other Pacific Islander
-                .when(pl.col("race_4"))
-                .then(pl.lit("pacific_islander"))
-                # race_5: White
-                .when(pl.col("race_5"))
-                .then(pl.lit("white"))
-                # race_6: other race
-                .when(pl.col("race_997"))
-                .then(pl.lit("other"))
-                .otherwise(
-                    pl.lit(None)  # includes race/ethnicity 999 (prefer not to answer)
-                )
-            )
+        # imputed values
+        raceeth_cols = ["race_imputed", "ethnicity_imputed"]
+        return person_raw.with_columns(
+            raceeth=pl.when(pl.col("ethnicity_imputed") == "hispanic")
+            .then(pl.lit("hispanic"))
+            .otherwise(pl.col("race_imputed"))
         )
+        # non-imputed values:
+        # (though they now have the race_user_imputed and ethnicity_user_imputed fields)
+        # raceeth_cols = [f"ethnicity_{i}" for i in [1, 2, 3, 4, 997, 999]] + [
+        #     f"race_{i}" for i in [1, 2, 3, 4, 5, 997, 999]
+        # ]
+        # return (
+        #     person_raw.with_columns(
+        #         pl.col(raceeth_cols).replace({995: None}),  # missing
+        #     )
+        #     .with_columns(
+        #         race_multi=(
+        #             pl.sum_horizontal([f"race_{i}" for i in [1, 2, 3, 4, 5, 997]]) > 1
+        #         ),
+        #     )
+        #     .with_columns(pl.col(raceeth_cols).cast(bool))
+        #     .with_columns(
+        #         hispanic=(
+        #             pl.col("ethnicity_2")
+        #             | pl.col("ethnicity_3")
+        #             | pl.col("ethnicity_4")
+        #             | pl.col("ethnicity_997")
+        #         ),
+        #     )
+        #     .rename({"ethnicity_1": "not_hispanic"})
+        #     .with_columns(
+        #         raceeth=pl.when(pl.col("not_hispanic") & pl.col("hispanic"))
+        #         # sanity check: people claiming both to be hispanic and non-hispanic
+        #         .then(pl.lit(None))  # alternatively: could maybe just use the race
+        #         .when(pl.col("hispanic"))
+        #         .then(pl.lit("hispanic"))
+        #         # all cases below are non-hispanic
+        #         # NOTE multi-race is only if non-hispanic; once someone declares oneself
+        #         #      as hispanic, under this parser they cannot be multi-racial
+        #         .when(pl.col("race_multi"))
+        #         .then(pl.lit("multi"))
+        #         # race_1: African American or Black
+        #         .when(pl.col("race_1"))
+        #         .then(pl.lit("black"))
+        #         # race_2: American Indian or Alaska Native
+        #         .when(pl.col("race_2"))
+        #         .then(pl.lit("aiak"))
+        #         # race_3: Asian
+        #         .when(pl.col("race_3"))
+        #         .then(pl.lit("asian"))
+        #         # race_4: Native Hawaiian or other Pacific Islander
+        #         .when(pl.col("race_4"))
+        #         .then(pl.lit("pacific_islander"))
+        #         # race_5: White
+        #         .when(pl.col("race_5"))
+        #         .then(pl.lit("white"))
+        #         # race_6: other race
+        #         .when(pl.col("race_997"))
+        #         .then(pl.lit("other"))
+        #         .otherwise(
+        #             pl.lit(None)  # includes race/ethnicity 999 (prefer not to answer)
+        #         )
+        #     )
+        # )
     else:
         raise NotImplementedError("not a recognized year (survey batch)")
 
@@ -357,17 +394,17 @@ def trip_join_hh_person(trip, hh, person):
 
 def load_tnc_trips(
     tour_extract_dir,
+    num_travelers=False,
     tnc_replace=False,
     tnc_wait_time=False,
     taxi_cost=False,
     depart_hour=False,
 ):
     trip = filter_tnc_only(
-        load_trip_assign_day(
-            tour_extract_dir / "trip-assign_day.csv", depart_hour=depart_hour
-        ),
+        load_trip_assign_day(tour_extract_dir / "trip.csv", depart_hour=depart_hour),
         load_trip_raw(
             tnc=True,
+            num_travelers=num_travelers,
             tnc_replace=tnc_replace,
             tnc_wait_time=tnc_wait_time,
             taxi_cost=taxi_cost,
@@ -397,16 +434,17 @@ df_to_excel_col_dict = {  # the output is sorted by the labels list
     "dpurp": {  # from 2a trip-reformat
         "desc": "DPurp",
         "col": "dpurp",
-        "vals": range(0, 8),
+        "vals": list(range(0, 8)) + [11],
         "labels": [
-            "0_Home",
-            "1_Work",
-            "2_School",
-            "3_Escort",
-            "4_PersBus",
-            "5_Shop",
-            "6_Meal",
-            "7_SocRec",
+            "00-Home",
+            "01-Work (inc work-related)",
+            "02-School (inc school-related)",
+            "03-Escort",
+            "04-PersBus (originally in survey 'errand')",
+            "05-Shop",
+            "06-Meal",
+            "07-SocRec",
+            "11-Other (inc overnight non-home)",
         ],
     },
     # depart_hour = pl.col("deptm") // 100  # with deptm from trip-reformat
@@ -433,7 +471,15 @@ df_to_excel_col_dict = {  # the output is sorted by the labels list
     "hh_income_cat": {  # from load_hh_raw()
         "desc": "HHIncome",
         "col": "hh_income_cat",  # recoded broad categories
-        "vals": list(range(1, 7)) + [995, 999],
+        # "vals": list(range(1, 7)) + [995, 999],  # this is for income_broad
+        "vals": [  # this is for income_imputed
+            "Under $25,000",
+            "$25,000-$49,999",
+            "$50,000-$74,999",
+            "$75,000-$99,999",
+            "$100,000-$199,999",
+            "$200,000 or more",
+        ],
         "labels": [
             "000-25k",
             "025-50k",
@@ -441,8 +487,8 @@ df_to_excel_col_dict = {  # the output is sorted by the labels list
             "075-100k",
             "100-200k",
             "200k+",
-            "missing response",
-            "prefer not to answer",
+            # "missing response",  # doesn't exist for income_imputed
+            # "prefer not to answer",  # doesn't exist for income_imputed
         ],
     },
     "home_county": {
