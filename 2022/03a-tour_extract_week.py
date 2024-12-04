@@ -18,16 +18,17 @@ DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "su
 MAXTOUR = 75
 
 # according to the weighting memo, the weights are only good for weekdays only,
-# but seems like this script is recalculating the trip weights from scratch anyways
-weekdays_only = True  # 4 or 7 days
-if weekdays_only:
-    WT_COMPLETE_COL = "num_days_complete_weekday"
-else:
-    WT_COMPLETE_COL = "num_days_complete"
+# but seems like this script is recalculating the trip weights from scratch anyways.
+# 3/4/5/7 days:
+WT_COMPLETE_COL = "num_days_complete_3dayweekday"
+# WT_COMPLETE_COL = "num_days_complete_4dayweekday"
+# WT_COMPLETE_COL = "num_days_complete_5dayweekday"
+# WT_COMPLETE_COL = "num_days_complete"
 
 
 def isclose(a, b, rel_tol=1e-09, abs_tol=0.000001):
     """compares floating point numbers"""
+    # TODO just swap out and use np.isclose()
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
@@ -61,8 +62,6 @@ def tour_extract_week(config):
     tour_extract_week_dir = Path(config["03a-tour_extract_week"]["dir"])
     tour_extract_week_dir.mkdir(exist_ok=True)
     outhhfilename = tour_extract_week_dir / config["hh_filename"]
-    # day: constructed from scratch, NOT from the day table received from vendor
-    outhdayfilename = tour_extract_week_dir / config["day_filename"]
     outperfilename = tour_extract_week_dir / config["person_filename"]
     outpdayfilename = (
         tour_extract_week_dir / config["03a-tour_extract_week"]["personday_filename"]
@@ -82,7 +81,7 @@ def tour_extract_week(config):
         # NOTE TODO trexpfac: doesn't seem to be actually used;
         # seems like the `wt` var is just (over)written to this column.
         # But why calculate it ourselves if the vendor already does it for us?
-        trip["trexpfac"] = trip[config["03a-tour_extract_week"]["trip_weight_col"]]
+        # trip["trexpfac"] = trip[config["03a-tour_extract_week"]["trip_weight_col"]]
 
         # remove some bad records
         r1 = trip.shape[0]
@@ -403,6 +402,8 @@ def tour_extract_week(config):
             for p in range(1, len(hpers) + 1):
                 # tour formation logic - loop on days
                 d = 0
+                # TODO should `day` be d instead? 2019 also had d stuck at 0 though
+                # though Drew says this seems like it should be a single iteration loop
                 for day in range(1):
                     # d += 1
                     # empty counters for diary day
