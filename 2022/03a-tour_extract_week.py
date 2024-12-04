@@ -1,19 +1,19 @@
 import argparse
 import datetime
-import tomllib
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import tomllib
 
 # MAXTOUR = 16
 MAXSTOP = 21
 PMAX = 15
-DMAX = 1
+DMAX = 1  # Drew was testing this with DMAX = 7 too in Fall 2024, which doesn't work
 TMAX = 200
 NPTYPES = 9
 delim = ","
-DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}
+# DOW_LOOKUP = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}
 
 MAXTOUR = 75
 
@@ -198,6 +198,8 @@ def tour_extract_week(config):
             #         for h in range(1791,1792):
             hhno = hh["hhno"][h]
             hhsize = hh["hhsize"][h]
+            hhxco = hh["hxcord"][h]
+            hhyco = hh["hycord"][h]
             hpers = persons.loc[persons["hhno"] == hhno,].reset_index()
 
             #             # For debugging
@@ -205,8 +207,10 @@ def tour_extract_week(config):
             #                 print('hi')
 
             pdays = {}
+            # loop through household members
             for p in range(1, len(hpers) + 1):
                 pno = hpers["pno"][p - 1]
+                # calculate household level variables from person attributes
                 if p == 1:
                     hhwkrs = 0
                     hhftw = 0
@@ -236,6 +240,7 @@ def tour_extract_week(config):
                 if hpers["pptyp"][p - 1] == 8:
                     hhcu5 = hhcu5 + 1
 
+                # store the person data
                 psvid[p] = pno
                 pptyp[p] = hpers["pptyp"][p - 1]
                 pwtyp[p] = hpers["pwtyp"][p - 1]
@@ -252,8 +257,6 @@ def tour_extract_week(config):
                     pexpwt[p] = hpers["psexpfac"][p - 1]
                 pwpcl[p] = hpers["pwpcl"][p - 1]
                 pspcl[p] = hpers["pspcl"][p - 1]
-                hhxco = hh["hxcord"][h]
-                hhyco = hh["hycord"][h]
 
                 num_wkdays[p] = hpers[WT_COMPLETE_COL][p - 1]
 
@@ -263,7 +266,7 @@ def tour_extract_week(config):
                 precs_w[p] = int(len(hpertrips))
                 pdays[p] = []
                 st_trip_nos = []
-                # initialize
+                # initialize.  If DMAX==1 nothing happens
                 for k in range(1, DMAX):
                     precs[p, k, 0] = 0
                     precs[p, k, 1] = 0
@@ -273,6 +276,7 @@ def tour_extract_week(config):
                     tripnum_col = (
                         "lintripno" if "lintripno" in hpertrips.columns else "tripno"
                     )
+                    # list of first tripnum by dow
                     t1 = sorted(
                         hpertrips[["dow", tripnum_col]]
                         .groupby("dow")
@@ -280,6 +284,7 @@ def tour_extract_week(config):
                         .tolist()
                     )
                     st_trip_nos = list(t1)
+                    # list of last tripnum by dow
                     t2 = sorted(
                         hpertrips[["dow", tripnum_col]]
                         .groupby("dow")
@@ -290,6 +295,7 @@ def tour_extract_week(config):
                 #                         precs[p,d,0] = t1
                 #                         precs[p,d,1] = t2
 
+                # store the trip attributes
                 for t in range(1, len(hpertrips) + 1):
                     tsvid[p, t] = hpertrips["tripno"][t - 1]
 
@@ -316,16 +322,19 @@ def tour_extract_week(config):
 
                     tdow[p, t] = hpertrips["dow"][t - 1]
 
+                    # get the destination type by checking against known home and work locations
+                    # TODO: what about school?
+                    # TODO: What about overnight / secondary home?
                     if tdprp[p, t] == 0 or (
                         isclose(tdxco[p, t], hhxco) and isclose(tdyco[p, t], hhyco)
-                    ):
+                    ):  # if dest is home
                         tdtyp[p, t] = 1
                         tdpcl[p, t] = hh["hhparcel"][h]
                         tdtaz[p, t] = hh["hhtaz"][h]
                     elif tdprp[p, t] == 1 or (
                         isclose(tdxco[p, t], pwxco[p])
                         and isclose(tdyco[p, t], pwyco[p])
-                    ):
+                    ):  # if dest is work
                         tdtyp[p, t] = 2
                         # tdpcl[p,t] = pwpcl[p]
                         # tdtaz[p,t] = pwtaz[p]
@@ -337,8 +346,10 @@ def tour_extract_week(config):
                         tdtyp[p, t] = 5
 
                     if (tdow[p, t] - tdow[p, t - 1] > 1) or t == 1:
+                        # If there is a day missing between trips, reset the trip origin based on known locations.
                         reset_flag = True
                     else:
+                        # Otherwise, set the trip origin equal to the previous trip destination.
                         reset_flag = False
 
                     if t > 1 and not reset_flag:
@@ -353,7 +364,7 @@ def tour_extract_week(config):
                         and isclose(hhyco, toyco[p, t])
                         and not isclose(toxco[p, t], -1.0)
                         and not isclose(toyco[p, t], -1.0)
-                    ):
+                    ):  # if origin is home
                         toxco[p, t] = hhxco
                         toyco[p, t] = hhyco
                         totyp[p, t] = 1
@@ -361,6 +372,8 @@ def tour_extract_week(config):
                         totaz[p, t] = hh["hhtaz"][h]
                         toprp[p, t] = 0
                     elif hpertrips["opurp"][t - 1] == 1:
+                        # if origin is work; CH: though why are we not checking if it's
+                        # close to the work coords here, yet we check for home coords above?
                         toxco[p, t] = pwxco[p]
                         toyco[p, t] = pwyco[p]
                         totyp[p, t] = 2
@@ -380,6 +393,7 @@ def tour_extract_week(config):
                     else:
                         toatm[p, t] = 0
 
+                    # convert time from int(hhmm) into minutes-past-midnight
                     strthr = int(hpertrips["deptm"][t - 1] / 100)
                     strtmin = int(hpertrips["deptm"][t - 1]) - int(strthr * 100)
                     todtm[p, t] = 60 * strthr + strtmin
@@ -392,9 +406,11 @@ def tour_extract_week(config):
                     if tdatm[p, t] < todtm[p, t]:
                         tdatm[p, t] = tdatm[p, t] + 1440
 
+                    # initialize duration to 4 hours (240 minutes)
                     tddtm[p, t] = 1680
                     tddur[p, t] = tddtm[p, t] - tdatm[p, t]
                     if t > 1 and not reset_flag:
+                        # calculate actual duration if it's not the first trip, and not a gap in days.
                         tddtm[p, t - 1] = todtm[p, t]
                         tddur[p, t - 1] = tddtm[p, t - 1] - tdatm[p, t - 1]
 
@@ -405,7 +421,8 @@ def tour_extract_week(config):
                 # TODO should `day` be d instead? 2019 also had d stuck at 0 though
                 # though Drew says this seems like it should be a single iteration loop
                 for day in range(1):
-                    # d += 1
+                    # for d in range(DMAX):
+                    # d += 1  # Drew tried uncommenting this in Fall 2024
                     # empty counters for diary day
                     hbtour[p, d] = 0
                     wbtour[p, d] = 0
@@ -453,6 +470,7 @@ def tour_extract_week(config):
                                     if tdow[p, t] - fdow > 1:
                                         fact = 0
                                         continue
+                                    # initialize home-based tour attributes
                                     hbtour[p, d] = hbtour[p, d] + 1
                                     subtrs[p, d, hbtour[p, d]] = 0
                                     parent[p, d, hbtour[p, d]] = 0
@@ -469,20 +487,24 @@ def tour_extract_week(config):
 
                         for t in range(leaveorig[p, d, tour], arrivorig[p, d, tour]):
                             if tdprp[p, t] == 1:
+                                # work
                                 if pptyp[p] > 4:
                                     tprior = 2
                                 else:
                                     tprior = 1
                             elif tdprp[p, t] == 2:
+                                # school
                                 if pptyp[p] > 4:
                                     tprior = 1
                                 else:
                                     tprior = 2
                             elif tdprp[p, t] == 3:
+                                # escort
                                 tprior = 3
                             else:
                                 tprior = 4
 
+                            # update the primary destination if this one is a higher priority, or same priority and longer duration
                             if (tprior < pdprio[p, d, tour]) or (
                                 tprior == pdprio[p, d, tour]
                                 and tddur[p, t] > pddura[p, d, tour]
@@ -494,6 +516,7 @@ def tour_extract_week(config):
                                 arrivdest[p, d, tour] = t
                                 leavedest[p, d, tour] = t + 1
 
+                        # update the primary tour if this one is a higher priority, or same priority and longer duration
                         if tour == 1:
                             primtour[p, d] = 1
                         elif (pdprio[p, d, tour] < pdprio[p, d, primtour[p, d]]) or (
@@ -918,6 +941,7 @@ def tour_extract_week(config):
                 )
 
                 for d in range(1):
+                    # for d in range(DMAX):
                     # write person-day pattern record
                     if pdfheader == 0:
                         outpdayfile.write(header + "\n")
