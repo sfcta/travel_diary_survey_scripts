@@ -32,10 +32,10 @@ def taz_spatial_join(config):
     person_taz_join = sjoin_maz(
         sjoin_maz(person, maz, "person_id", "work"), maz, "person_id", "school"
     )
-    trip_taz_join = sjoin_maz(sjoin_maz(trip, maz, "trip_id", "o"), maz, "trip_id", "d")
-    hh_taz_join.to_csv(taz_spatial_join_dir / config["hh_filename"])
-    person_taz_join.to_csv(taz_spatial_join_dir / config["person_filename"])
-    trip_taz_join.to_csv(taz_spatial_join_dir / config["trip_filename"])
+    trip_taz_join = sjoin_maz(sjoin_maz(trip, maz, "trip_id_sfcta", "o"), maz, "trip_id_sfcta", "d")
+    hh_taz_join.to_csv(taz_spatial_join_dir / config["hh_filename"], index=False)
+    person_taz_join.to_csv(taz_spatial_join_dir / config["person_filename"], index=False)
+    trip_taz_join.to_csv(taz_spatial_join_dir / config["trip_filename"], index=False)
 
 
 def sjoin_maz(df: pd.DataFrame, maz: gpd.GeoDataFrame, id_col: str, var_prefix: str):

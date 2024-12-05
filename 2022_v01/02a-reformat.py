@@ -417,7 +417,9 @@ def reformat_trip(in_trip_filepath, weighted: bool):
     trip_out_cols = [
         "hhno",
         "pno",
-        "tripno",
+        "tripno", # updated.  previously linked to source data, but is now a new unique index needed due to trip splitting.  
+        "tsvid", # newly added, for linking back to source data.  
+        "day", # newly added, for sorting during tour-building
         "dow",
         "opurp",
         "dpurp",
@@ -455,6 +457,7 @@ def reformat_trip(in_trip_filepath, weighted: bool):
             {
                 "hh_id": "hhno",
                 "person_num": "pno",
+                "day_num": "day", # newly added, for sorting during tour-building
                 "o_taz": "otaz",
                 "o_maz": "opcl",
                 "d_taz": "dtaz",
@@ -463,12 +466,13 @@ def reformat_trip(in_trip_filepath, weighted: bool):
                 "o_lat": "oycord",
                 "d_lon": "dxcord",
                 "d_lat": "dycord",
-                "trip_num": "tripno",
+                "trip_num": "tsvid", # new: this will link back to original data
+                "trip_num_sfcta": "tripno", #new: this previously linked to original, now it's a new unique index to deal with trip splitting
                 "travel_dow": "dow",
             }
         )
         # retain only trips in complete person-days
-        .filter(pl.col("day_is_complete") == 1)
+        .filter(pl.col("day_is_complete") == 1)  # TODO test dropping this.  
         .with_columns(
             pl.col(["oxcord", "oycord", "dxcord", "dycord"]).fill_null(-1),
             # NOTE deptm/arrtm are NOT using standard Daysim definitions

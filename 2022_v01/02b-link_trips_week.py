@@ -177,13 +177,17 @@ def link_trips_week(config):
         if i > 0:
             prev_hhno = trip.loc[i, "hhno"]
             prev_pno = trip.loc[i, "pno"]
-            prev_dow = trip.loc[i, "dow"]
-            dow_diff = trip.loc[i, "dow"] - trip.loc[i - 1, "dow"]
+            #prev_dow = trip.loc[i, "dow"]
+            #dow_diff = trip.loc[i, "dow"] - trip.loc[i - 1, "dow"]
+            prev_day = trip.loc[i, "day"]
+            day_diff = trip.loc[i, "day"] - trip.loc[i - 1, "day"]
         else:
             prev_hhno = 0
             prev_pno = 0
-            prev_dow = 0
-            dow_diff = 0
+            #prev_dow = 0
+            #dow_diff = 0
+            prev_day = 0
+            day_diff = 0
 
         hhno = trip.loc[i, "hhno"]
         pno = trip.loc[i, "pno"]
@@ -207,7 +211,8 @@ def link_trips_week(config):
             if (
                 hhno == prev_hhno
                 and pno == prev_pno
-                and dow_diff <= 1
+                #and dow_diff <= 1
+                and day_diff <= 1
                 and trip.loc[i, "opurp"] == 10
             ):
                 trip.loc[i, "opurp"] = 4
