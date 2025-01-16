@@ -52,8 +52,10 @@ def sjoin_maz(df: pd.DataFrame, maz: gpd.GeoDataFrame, id_col: str, var_prefix: 
         # can't just use sjoin(predicate="within"), because the MAZs in the MAZ GIS file
         # aren't contiguous; there's many gaps between MAZs.
         # Q:\GIS\Model\MAZ\MAZ40051.* is in a ft CRS, so this sets max_distance = 1000ft,
-        # preventing locations outside the Bay Area from being associated with MAZ/TAZs
-        .sjoin_nearest(maz, how="left", max_distance=1000)
+        # preventing locations outside the Bay Area from being associated with MAZ/TAZs.
+        # HOTFIX Further increased buffer from 1000 to 2000 ft, because a development
+        # near Fremont/Newark falls outside of current MAZs.
+        .sjoin_nearest(maz, how="left", max_distance=2000)
         # sjoin_nearest gives all matches if they're equidistant, so we just
         # randomly select the first of these equidistant MAZ/TAZs to keep
         .drop_duplicates(subset=id_col, keep="first")
