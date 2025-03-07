@@ -1,0 +1,37 @@
+weighted = true
+
+day_filename = "day.csv"
+hh_filename = "hh.csv"
+location_filename = "location.csv"
+person_filename = "person.csv"
+trip_filename = "trip.csv"
+vehicle_filename = "vehicle.csv"
+tour_filename = "tour.csv"
+
+[raw]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Deliverable_20241127"
+
+[00-preprocess]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/00-preprocess"
+rmove_only = true
+primary_respondent_only = false
+completion_basis = "person"
+
+[01-taz_spatial_join]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/01-taz_spatial_join"
+maz_filepath = "Q:/GIS/Model/MAZ/MAZ40051.shp"
+
+[02-reformat]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/02-reformat"
+
+[03a-tour_extract]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/03-tour_extract"
+
+[03b-assign_day]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/03-tour_extract/wt_wkday"
+
+[04a-merge_skims]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/04-merge_skims/wt_wkday"
+
+[04b-adjust_weights]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/04-merge_skims/adj_weights"
