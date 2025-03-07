@@ -26,7 +26,7 @@ dstriplistfile                        = file.path("X:/Projects/CHAMP7CE/Run5_202
 # surveypdayfile                                = "_old_survey/sfcta_chts_pdayx_rewt_abmxfer.dat"
 # surveytourfile                                = "_old_survey/sfcta_chts_tourx_rewt_abmxfer.dat"
 # surveytripfile                                = "_old_survey/sfcta_chts_tripx_rewt_abmxfer.dat"
-surveydir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly/04-merge_skims/adj_weights"
+surveydir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly/04-merge_skims/adj_weights_nokids"
 surveyhhfile                              = file.path(surveydir,"survey2023_hrecx_rewt_base2023.dat")
 surveyperfile                             = file.path(surveydir,"survey2023_precx_rewt_base2023.dat")
 surveypdayfile                            = file.path(surveydir,"survey2023_pdayx_rewt_base2023.dat")
@@ -64,7 +64,7 @@ tripmodemodelout                          = "TripMode.xlsm"
 triptodmodelout                           = "TripTOD.xlsm"
 mazwrklocout                              = "MazWrkSch.xlsm"
 
-outputsDir                                = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly/99-rsums"  # "X:/Projects/CHAMP7CE/Run5_2023/daysim/r_summaries"
+outputsDir                                = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly/99-rsums_nokids"  # "X:/Projects/CHAMP7CE/Run5_2023/daysim/r_summaries"
 validationDir                             = ""
 
 prepSurvey                                = TRUE
@@ -79,7 +79,7 @@ runTourTOD                                = TRUE
 runTripMode                               = TRUE
 runTripTOD                                = TRUE
 
-excludeChildren_All                       = FALSE
+excludeChildren_All                       = TRUE
 excludeChildren5                          = FALSE
 tourAdj                                   = FALSE
 tourAdjFile				                  = "./data/peradjfac.csv"
