@@ -542,7 +542,7 @@ if __name__ == '__main__':
                             htrips[p,d,tour,half] = stop
             
             #reorder tours in purpose order
-            for p in range(1,hhsize+1):
+            for p in range(1,len(hpers)+1): # UPDATE loop on len(hpers) not hhsize
                 for d in range(1):
                     torder = 0
                     for tselect in range(12):
