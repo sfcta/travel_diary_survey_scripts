@@ -138,3 +138,6 @@ _99_summary/
 PSRC/
 R_Summaries/
 .Rproj.user
+
+# R summaries output
+Rplots.pdf
