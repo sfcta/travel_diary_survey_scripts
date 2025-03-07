@@ -8,8 +8,9 @@ Generic trip record class, plus some extra functions that will likely come up.
 Modified in 2014 by Bhargava Sana to just isolate a skim query functionality.
 '''
 
-from tables import open_file
-import os
+from tables import openFile
+from time import time,localtime,strftime
+import os,sys,numpy
 
 # Functionally constants
 TIMEPERIODS     = { 1:"EA", 2:"AM", 3:"MD", 4:"PM", 5:"EV" }
@@ -26,10 +27,10 @@ class SkimUtil2:
         self.skimdir         = skimdir
         self.hwyskims        = { 1:{}, 2:{}, 3:{}, 4:{}, 5:{} }
         for tkey in timeperiods:
-            self.hwyskims[tkey] = open_file(os.path.join(skimdir,skimprefix+"HWYALL" + TIMEPERIODS[tkey] + ".h5"), mode="r")
-        self.termtime        = open_file(os.path.join(skimdir,"OPTERM.h5"), mode="r")
+            self.hwyskims[tkey] = openFile(os.path.join(skimdir,skimprefix+"HWYALL" + TIMEPERIODS[tkey] + ".h5"), mode="r")
+        self.termtime        = openFile(os.path.join(skimdir,"OPTERM.h5"), mode="r")
 
-        print("SkimUtil2 initialized for " + skimdir)
+        print "SkimUtil2 initialized for %s" % (skimdir)
 
     def getDASkims(self, otaz, dtaz, timeperiod=2):
         """ Returns distance, time, out-of-pocket cost (fares, bridge & value tolls)
@@ -40,15 +41,15 @@ class SkimUtil2:
         termtime                = 0
 
         # this is ok because of the PNR zones
-        if (otaz >= self.termtime.get_node('/', '1').shape[0] or
-            dtaz >= self.termtime.get_node('/', '1').shape[0]):
+        if (otaz >= self.termtime.root._f_getChild("1").shape[0] or
+            dtaz >= self.termtime.root._f_getChild("1").shape[0]):
             termtime = 0
         else:
-            termtime = self.termtime.get_node('/', '1')[otaz-1][dtaz-1]
+            termtime = self.termtime.root._f_getChild("1")[otaz-1][dtaz-1]
 
-        t = self.hwyskims[timeperiod].get_node('/', '1')[otaz-1,dtaz-1] + termtime
-        d = self.hwyskims[timeperiod].get_node('/', '2')[otaz-1,dtaz-1]
-        f = self.hwyskims[timeperiod].get_node('/', '3')[otaz-1,dtaz-1]/100.0
+        t = self.hwyskims[timeperiod].root._f_getChild("1")[otaz-1,dtaz-1] + termtime
+        d = self.hwyskims[timeperiod].root._f_getChild("2")[otaz-1,dtaz-1]
+        f = self.hwyskims[timeperiod].root._f_getChild("3")[otaz-1,dtaz-1]/100.0
         return (t,d,f)
                     
 

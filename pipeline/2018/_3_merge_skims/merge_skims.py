@@ -1,5 +1,5 @@
 '''
-Created on May 11, 2020
+Created on Oct 22, 2013
 
 @author: bhargava.sana
 '''
@@ -11,9 +11,9 @@ delim = ' '
 
 if __name__ == '__main__':
     if len(sys.argv)<2:
-        print('Please provide a control file which contains all the required input parameters as an argument!')
+        print 'Please provide a control file which contains all the required input parameters as an argument!'
     else:
-        print ('Merge skims program started: ' + str(datetime.datetime.now()))
+        print 'Merge skims program started: ',datetime.datetime.now()
         #Initiate log file
         logfilename = 'skim_merge.log'
         logfile = open(logfilename,'w')
@@ -67,19 +67,19 @@ if __name__ == '__main__':
         outpdayfilename = outputdir + os.sep + outpdayfilename
         
         hh = pd.read_csv(inhhfilename, sep=' ') 
-        print('Read household file: ' + str(datetime.datetime.now()))                
+        print 'Read household file: ',datetime.datetime.now()                
         logfile.write('Read household file: ' + str(datetime.datetime.now()) + '\n')
         persons = pd.read_csv(inperfilename, sep=' ') 
-        print('Read person file: ' + str(datetime.datetime.now()))                
+        print 'Read person file: ',datetime.datetime.now()                
         logfile.write('Read person file: ' + str(datetime.datetime.now()) + '\n')
         pday = pd.read_csv(inpdayfilename, sep=' ') 
-        print('Read person day file: ' + str(datetime.datetime.now()))                
+        print 'Read person day file: ',datetime.datetime.now()                
         logfile.write('Read person day file: ' + str(datetime.datetime.now()) + '\n') 
         tour = pd.read_csv(intourfilename, sep=' ')
-        print('Read tour file: ' + str(datetime.datetime.now()))                
+        print 'Read tour file: ',datetime.datetime.now()                
         logfile.write('Read tour file: ' + str(datetime.datetime.now()) + '\n')
         trip = pd.read_csv(intripfilename, sep=' ')
-        print('Read trip file: ' + str(datetime.datetime.now()))                
+        print 'Read trip file: ',datetime.datetime.now()                
         logfile.write('Read trip file: ' + str(datetime.datetime.now()) + '\n') 
         
         # output hh file
@@ -105,7 +105,7 @@ if __name__ == '__main__':
         #Retain SFCTA persons and merge work and school skims
         logfile.write('\n')                
         logfile.write('Merge skims for persons started: ' + str(datetime.datetime.now()) + '\n')
-        print('Merge skims for persons started: ' + str(datetime.datetime.now()))
+        print 'Merge skims for persons started: ',datetime.datetime.now()
         
         persons = hh[['hhno','hhtaz']].merge(persons,on='hhno',how='left')
         persons['pwautime'] = -1.0
@@ -127,12 +127,12 @@ if __name__ == '__main__':
         
         persons.to_csv(outperfilename, sep=delim, index=False)
         logfile.write('Merge skims for persons finished: ' + str(datetime.datetime.now()) + '\n')
-        print('Merge skims for persons finished: ' + str(datetime.datetime.now()))
+        print 'Merge skims for persons finished: ',datetime.datetime.now()
 
         #Merge skims into tour
         logfile.write('\n')                
         logfile.write('Merge skims for tour started: ' + str(datetime.datetime.now()) + '\n')
-        print('Merge skims for tour started: ' + str(datetime.datetime.now()))
+        print 'Merge skims for tour started: ',datetime.datetime.now()
 
         tour['tautotime'] = -1.0
         tour['tautocost'] = -1.0
@@ -151,12 +151,12 @@ if __name__ == '__main__':
         tour['toexpfac'] = tour['pdexpfac']      
         tour.to_csv(outtourfilename, sep=delim, index=False)
         logfile.write('Merge skims for tour finished: ' + str(datetime.datetime.now()) + '\n')
-        print('Merge skims for tour finished: ' + str(datetime.datetime.now()))
+        print 'Merge skims for tour finished: ',datetime.datetime.now()
 
         #Merge skims into trip
         logfile.write('\n')                
         logfile.write('Merge skims for trip started: ' + str(datetime.datetime.now()) + '\n')
-        print('Merge skims for trip started: ' + str(datetime.datetime.now()))
+        print 'Merge skims for trip started: ',datetime.datetime.now()
 
         trip['travtime'] = -1.0
         trip['travcost'] = -1.0
@@ -175,9 +175,9 @@ if __name__ == '__main__':
         trip['trexpfac'] = trip['pdexpfac']        
         trip.to_csv(outtripfilename, sep=delim, index=False)
         logfile.write('Merge skims for trip finished: ' + str(datetime.datetime.now()) + '\n')
-        print('Merge skims for trip finished: ' + str(datetime.datetime.now()))
+        print 'Merge skims for trip finished: ',datetime.datetime.now()
         
         logfile.write('\n')                
         logfile.write('Merge skims program finished: ' + str(datetime.datetime.now()) + '\n')
         logfile.close()
-        print('Merge skims program finished: ' + str(datetime.datetime.now()))
+        print 'Merge skims program finished: ',datetime.datetime.now()
