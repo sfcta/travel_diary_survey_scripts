@@ -8,9 +8,7 @@ import pandas as pd
 import numpy as np
 from os.path import join
 
-# DIR = r'..\..\Processing_20200228\1_reformat_survey'
-# SANDAG
-DIR = '.'
+DIR = r'..\..\02-reformat'
 
 trip = pd.read_csv(join(DIR, 'temp_tripx.dat'), sep=' ')
 ORIG_COLS = [col for col in trip.columns if col!= 'mode_type_imputed']
@@ -65,21 +63,21 @@ tmp_flag = False
 def merge_trips(rownum, skip, mode):
     global tmp_flag
     if skip==1 and mode in [6,7]:
-        tmp_dict['hhno'] = trip.loc[rownum, 'hhno']
-        tmp_dict['pno'] = trip.loc[rownum, 'pno']
-        tmp_dict['dow'] = trip.loc[rownum, 'dow']
-        tmp_dict['tripno'] = trip.loc[rownum, 'tripno']
-        tmp_dict['mode'] = mode
-        tmp_dict['otaz'] = trip.loc[rownum, 'otaz']
-        tmp_dict['dtaz'] = trip.loc[rownum, 'dtaz_nxt']
-        tmp_dict['acc_mode'] = trip.loc[rownum, 'modeimp']
-        tmp_dict['egr_mode'] = trip.loc[rownum, 'modeimp_nxt']
+        tmp_dict['hhno'] = [trip.loc[rownum, 'hhno']]
+        tmp_dict['pno'] = [trip.loc[rownum, 'pno']]
+        tmp_dict['dow'] = [trip.loc[rownum, 'dow']]
+        tmp_dict['tripno'] = [trip.loc[rownum, 'tripno']]
+        tmp_dict['mode'] = [mode]
+        tmp_dict['otaz'] = [trip.loc[rownum, 'otaz']]
+        tmp_dict['dtaz'] = [trip.loc[rownum, 'dtaz_nxt']]
+        tmp_dict['acc_mode'] = [trip.loc[rownum, 'modeimp']]
+        tmp_dict['egr_mode'] = [trip.loc[rownum, 'modeimp_nxt']]
 
         tmp_flag = True
     elif tmp_flag:
-        tmp_dict['mode'] = mode
-        tmp_dict['dtaz'] = trip.loc[rownum, 'dtaz_nxt']
-        tmp_dict['egr_mode'] = trip.loc[rownum, 'modeimp_nxt']
+        tmp_dict['mode'] = [mode]
+        tmp_dict['dtaz'] = [trip.loc[rownum, 'dtaz_nxt']]
+        tmp_dict['egr_mode'] = [trip.loc[rownum, 'modeimp_nxt']]
     
     trip.loc[rownum, 'dpurp'] = trip.loc[rownum, 'dpurp_nxt']
     trip.loc[rownum, 'dpcl'] = trip.loc[rownum, 'dpcl_nxt']
@@ -145,14 +143,14 @@ while i < len(trip):
     elif trip.loc[i, 'last_ofper']==1 and dpurp==10:
         trip.loc[i, 'dpurp'] = 4 # just assume this is personal business
         if tmp_flag:
-            accegr_df = accegr_df.append(tmp_dict)
+            accegr_df = pd.concat([accegr_df, pd.DataFrame(tmp_dict)])
             tmp_flag = False
         i += 1 
         continue
     elif trip.loc[i, 'last_ofday']==1 and np.isnan(trip.loc[i, 'dpurp_nxt']):
         trip.loc[i, 'dpurp'] = 4 # just assume this is personal business
         if tmp_flag:
-            accegr_df = accegr_df.append(tmp_dict)
+            accegr_df = pd.concat([accegr_df, pd.DataFrame(tmp_dict)])
             tmp_flag = False
         i += 1 
         continue
@@ -179,7 +177,7 @@ while i < len(trip):
 #       print('check this case in initial: %s, %s' %(hhno, tripno))
         trip.loc[i, 'dpurp'] = 4 # just assume this is personal business
         if tmp_flag:
-            accegr_df = accegr_df.append(tmp_dict)
+            accegr_df = pd.concat([accegr_df, pd.DataFrame(tmp_dict)])
             tmp_flag = False
         i += 1 
         continue
@@ -208,14 +206,14 @@ while i < len(trip):
 #           print('check this case in loop: %s, %s' %(hhno, tripno))
             trip.loc[i, 'dpurp'] = 4 # just assume this is personal business
             if tmp_flag:
-                accegr_df = accegr_df.append(tmp_dict, ignore_index=True)
+                accegr_df = pd.concat([accegr_df, pd.DataFrame(tmp_dict)])
                 tmp_flag = False
             break
         
         final_dpurp = trip.loc[i, 'dpurp']
         
     if tmp_flag:
-        accegr_df = accegr_df.append(tmp_dict, ignore_index=True)
+        accegr_df = pd.concat([accegr_df, pd.DataFrame(tmp_dict)])
         tmp_flag = False
     i = i + j
     continue           
