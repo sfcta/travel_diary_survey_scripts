@@ -1,15 +1,15 @@
 
-INDIR					..\..\Processing_20200228\2_tour_extract\wt_wkday
-INHHFILE			survey2018_hrecx.dat
-INPERFILE			survey2018_precx.dat
-INTOURFILE			survey2018_tourx.dat
-INTRIPFILE			survey2018_tripx.dat
-INPDAYFILE			survey2018_pdayx.dat
-SKIMDIR			.\csf_2015
+INDIR				..\..\03-tour_extract\wt_wkday
+INHHFILE			survey2023_hrecx.dat
+INPERFILE			survey2023_precx.dat
+INTOURFILE			survey2023_tourx.dat
+INTRIPFILE			survey2023_tripx.dat
+INPDAYFILE			survey2023_pdayx.dat
+SKIMDIR				X:\Projects\CHAMP7CE\Run13_2023
 
-OUTDIR					..\..\Processing_20200228\3_merge_skims
-OUTHHFILE				survey2018_hrecx.dat
-OUTPERFILE			survey2018_precx.dat
-OUTTOURFILE			survey2018_tourx.dat
-OUTTRIPFILE			survey2018_tripx.dat
-OUTPDAYFILE			survey2018_pdayx.dat
+OUTDIR				..\..\04-merge_skims
+OUTHHFILE			survey2023_hrecx.dat
+OUTPERFILE			survey2023_precx.dat
+OUTTOURFILE			survey2023_tourx.dat
+OUTTRIPFILE			survey2023_tripx.dat
+OUTPDAYFILE			survey2023_pdayx.dat
