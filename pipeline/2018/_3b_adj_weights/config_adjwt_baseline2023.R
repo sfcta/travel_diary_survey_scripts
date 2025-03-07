@@ -1,5 +1,5 @@
 
-surveydir <- "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/04-merge_skims"
+surveydir <- "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly/04-merge_skims"
 surveyhhfile <- "survey2023_hrecx.dat"
 surveyperfile <- "survey2023_precx.dat"
 surveypdayfile <- "survey2023_pdayx.dat"
@@ -15,7 +15,7 @@ synth_perfile <- "_precx.dat"
 
 NUM_PTYPES <- 6
 
-outdir <- "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly_v2/04-merge_skims/adj_weights"
+outdir <- "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2022/Processed_20241127/reformat_2019_rmoveonly/04-merge_skims/adj_weights_nokids"
 outhhfile <- "survey2023_hrecx_rewt_base2023.dat"
 outperfile <- "survey2023_precx_rewt_base2023.dat"
 outpdayfile <- "survey2023_pdayx_rewt_base2023.dat"

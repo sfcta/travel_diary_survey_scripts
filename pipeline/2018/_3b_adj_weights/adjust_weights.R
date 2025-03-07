@@ -47,8 +47,8 @@ if(CONTROL_SOURCE_DAYSIM & !CONTROL_SOURCE_SFSAMP){
   synth_hh <- read.table(file.path(synthdir,synth_hhfile),header=T)
   synth_per <- read.table(file.path(synthdir,synth_perfile),header=T)
   
-#  # keep only adults
-#  synth_per <- synth_per[synth_per$pagey>17,]
+  # keep only adults
+  synth_per <- synth_per[synth_per$pagey>17,]
 
   #convert 1989 dollar to 2023 dollars (survey)
   synth_hh$hhincome <- synth_hh$hhincome*2.68
