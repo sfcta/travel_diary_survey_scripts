@@ -1,10 +1,11 @@
 
-INDIR					..\..\Processing_20200228\spatial_join
-INHHFILE			ex_hh_wZones.csv
-INPERFILE			ex_person_wZones.csv
-INTRIPFILE		ex_trip_wZones.csv
+INDIR				..\..\01-taz_spatial_join
+INHHFILE			hh.csv
+INPERFILE			person.csv
+INDAYFILE			day.csv
+INTRIPFILE			trip.csv
 
-OUTDIR				..\..\Processing_20200228\1_reformat_survey
+OUTDIR				..\..\02-reformat
 OUTHHFILE			temp_hrecx.dat
-OUTPERFILE		temp_precx.dat
-OUTTRIPFILE		temp_tripx.dat
+OUTPERFILE			temp_precx.dat
+OUTTRIPFILE			temp_tripx.dat

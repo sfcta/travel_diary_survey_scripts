@@ -76,10 +76,17 @@ if __name__ == '__main__':
         hh['hhincome'] = hh['income_detailed'].map(INC1_DICT)
         INC2_DICT = {999:-1, 1:12500, 2:37500, 3:62500, 4:87500, 5:175000, 6:350000}
         hh['hhinc2'] = hh['income_followup'].map(INC2_DICT)
-        hh.loc[(hh['hhincome']<0) & (hh['hhinc2']>0), 'hhincome'] = hh.loc[(hh['hhincome']<0) & (hh['hhinc2']>0), 'hhinc2']
+        hh['hhinc3'] = hh['hhinc_imputed'].map(INC2_DICT)
+        hh['hhinc4'] = hh['hhinc_nonrel_imputed'].map(INC2_DICT)
+        
+        # hhinc4 is the household income after adjusting for missing income of unrelated household members.  
+        # use hhinc4 if hhincome is missing, or if hhinc4 is greater than the others.  
+        hh.loc[(hh['hhincome']<0) | (hh['hhinc4']>hh['hhincome']), 'hhincome'] = hh.loc[(hh['hhincome']<0) | (hh['hhinc4']>hh['hhincome']), 'hhinc4']
+        #hh.loc[(hh['hhincome']<0) & (hh['hhinc2']>0), 'hhincome'] = hh.loc[(hh['hhincome']<0) & (hh['hhinc2']>0), 'hhinc2']
         
         hh['hownrent'] = hh['rent_own']
         hh.loc[hh['hownrent']==997, 'hownrent'] = 3 #Other
+        hh.loc[hh['hownrent']==995, 'hownrent'] = 9 # UPDATED DC 1/23/2025
         hh.loc[hh['hownrent']==999, 'hownrent'] = 9 #Prefer not to answer -> Missing
         hh.loc[hh['hownrent']<0, 'hownrent'] = -1
         
@@ -124,15 +131,15 @@ if __name__ == '__main__':
         
         per['pptyp'] =  0
         per['pwtyp'] =  0
-        per['pstyp'] =  0
+        per['pstyp'] =  -1
         
         per.loc[(per['pagey']>=0) & (per['pagey']<5), 'pptyp'] = 8
         per.loc[(per['pagey']>=0) & (per['pagey']<16) & (per['pptyp']==0), 'pptyp'] = 7
-        per.loc[(per['employment'].isin([1,3])) & (per['hours_work'].isin([1,2,3,4])) & (per['pptyp']==0), 'pptyp'] = 1
+        per.loc[(per['employment'].isin([1,3,7,8])) & (per['hours_work'].isin([1,2,3,4])) & (per['pptyp']==0), 'pptyp'] = 1 # UPDATED DC 1/23/2025
         per.loc[(per['pagey']>=16) & (per['pagey']<18) & (per['student'].isin([1,2])) & (per['pptyp']==0), 'pptyp'] = 6
         per.loc[(per['pagey']>=16) & (per['pagey']<25) & (per['school_type'].isin([7])) & (per['student'].isin([1,2])) & (per['pptyp']==0), 'pptyp'] = 6
         per.loc[(per['student'].isin([1,2])) & (per['pptyp']==0), 'pptyp'] = 5
-        per.loc[(per['employment'].isin([1,2,3])) & (per['pptyp']==0), 'pptyp'] = 2 # Remaining workers are part-time
+        per.loc[(per['employment'].isin([1,2,3,7,8])) & (per['pptyp']==0), 'pptyp'] = 2 # Remaining workers are part-time # UPDATED DC 1/23/2025
         per.loc[(per['pagey']>65) & (per['pptyp']==0), 'pptyp'] = 3
         per.loc[per['pptyp']==0, 'pptyp'] = 4
         
@@ -142,6 +149,7 @@ if __name__ == '__main__':
         per.loc[(per['pptyp']==5) & (per['employment'].isin([1,2,3])), 'pwtyp'] = 2
         per.loc[(per['pptyp']==6) & (per['employment'].isin([1,2,3])), 'pwtyp'] = 2
         
+        per.loc[per['student']==0, 'pstyp'] = 0
         per.loc[per['student']==1, 'pstyp'] = 1
         per.loc[per['student']==2, 'pstyp'] = 2
         
@@ -151,8 +159,9 @@ if __name__ == '__main__':
         per['psxcord'] = per['school_lon']
         per['psycord'] = per['school_lat']
         
-        per['ppaidprk'] = 1
-        per.loc[per['work_park']==1, 'ppaidprk'] = 0
+        per['ppaidprk'] = -1 # UPDATED DC 1/23/2025
+        per.loc[per['work_park'].isin([1,2]), 'ppaidprk'] = 0 # UPDATED DC 1/23/2025
+        per.loc[per['work_park'].isin([3,4]), 'ppaidprk'] = 1 # UPDATED DC 1/23/2025
         
         per = per.rename(columns={'pwtaz':'pwtaz_tmp', 'pstaz':'pstaz_tmp',
                                   'pwpcl':'pwpcl_tmp', 'pspcl':'pspcl_tmp'})
@@ -161,12 +170,13 @@ if __name__ == '__main__':
         per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pstaz'] = per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pstaz_tmp']
         per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pspcl'] = per.loc[per['school_county_fips'].isin(COUNTY_FIPS), 'pspcl_tmp']
         
-        per['flag'] = 0
-        per.loc[(per['pwtyp']>0) & (per['job_type']==3), 'flag'] = 1 # Work at home ONLY (telework, self-employed)
-        per.loc[per['flag']==1, 'pwxcord'] = per.loc[per['flag']==1, 'hxcord']
-        per.loc[per['flag']==1, 'pwycord'] = per.loc[per['flag']==1, 'hycord']
-        per.loc[per['flag']==1, 'pwpcl'] = per.loc[per['flag']==1, 'hhparcel']
-        per.loc[per['flag']==1, 'pwtaz'] = per.loc[per['flag']==1, 'hhtaz']
+        # UPDATED DC 1/23/2025
+        #per['flag'] = 0
+        #per.loc[(per['pwtyp']>0) & (per['job_type']==3), 'flag'] = 1 # Work at home ONLY (telework, self-employed)
+        #per.loc[per['flag']==1, 'pwxcord'] = per.loc[per['flag']==1, 'hxcord']
+        #per.loc[per['flag']==1, 'pwycord'] = per.loc[per['flag']==1, 'hycord']
+        #per.loc[per['flag']==1, 'pwpcl'] = per.loc[per['flag']==1, 'hhparcel']
+        #per.loc[per['flag']==1, 'pwtaz'] = per.loc[per['flag']==1, 'hhtaz']
         
         per.loc[pd.isnull(per['pwtaz']), 'pwtaz'] = -1
         per.loc[pd.isnull(per['pstaz']), 'pstaz'] = -1
@@ -240,7 +250,7 @@ if __name__ == '__main__':
             -1:-1,  #missing -> missing
             1:0,    #home -> home
             2:1,    #work -> work
-            3:4,    #work-related -> work
+            3:4,    #work-related -> personal business
             4:2,    #school -> school
             5:3,    #escort -> escort
             6:5,    #shop -> shop
