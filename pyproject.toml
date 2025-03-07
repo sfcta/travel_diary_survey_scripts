@@ -1,0 +1,7 @@
+[project]
+name = "travel-diary-survey-scripts"
+version = "0.0.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.12"  # for tomllib
+dependencies = []
