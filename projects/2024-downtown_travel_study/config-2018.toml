@@ -1,0 +1,44 @@
+weighted = true
+
+day_filename = "day.csv"
+hh_filename = "hh.csv"
+location_filename = "location.csv"
+person_filename = "person.csv"
+trip_filename = "trip.csv"
+vehicle_filename = "vehicle.csv"
+
+[raw]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Deliverable_20211018"
+
+# TODO have a utils.py that generates the dirs for each step from
+# Path(processed_dir) / subdir
+# processed_dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Processing_20211018/in_2022_format"
+
+[00-preprocess]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Processing_20211018/in_2022_format/00-preprocess"
+# dir = "Q:\Data\Surveys\HouseholdSurveys\MTC-SFCTA2018\Processing_20211018\spatial_join"
+
+[01-taz_spatial_join]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Processing_20211018/in_2022_format/01-taz_spatial_join"
+maz_filepath = "Q:/GIS/Model/MAZ/MAZ40051.shp"
+
+[02a-reformat]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Processing_20211018/in_2022_format/02a-reformat"
+
+[02b-link_trips_week]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Processing_20211018/in_2022_format/02b-link_trips_week"
+accegr_filename = "accegr_week.csv"  # access/egress
+# CH: originally named "temp_tripx_linked_detail_week"; not sure what's in here nor what it's used for
+trip_linked_detail_week_filename = "trip-detail.csv"
+
+[03a-tour_extract_week]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Processing_20211018/in_2022_format/03a-tour_extract_week"
+personday_filename = "personday.csv"
+tour_filename = "tour.csv"
+# hh_weight_col = "hh_weight"
+# person_weight_col = "person_weight"
+# trip_weight_col = "trip_weight"
+
+[03b-assign_day]
+dir = "Q:/Data/Surveys/HouseholdSurveys/MTC-SFCTA2018/Processing_20211018/in_2022_format/03b-assign_day"
+weight_dir = "wt_wkday"
